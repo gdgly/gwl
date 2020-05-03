@@ -20,10 +20,6 @@ int SERVER_ACCEPT(void);
 int NETWORKMASTER_LISTEN(void);
 int Decode_698_frame(char *buf, int len);
 
-extern CONNECT_TERM HOST;
-extern CONNECT_TERM NETWORKMASTER;
-extern CONNECT_TERM GPRS_SERVICE;
-extern CONNECT_TERM NETWORKMASTER_SERVICE;
 
 #endif
 

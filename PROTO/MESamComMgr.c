@@ -13,65 +13,50 @@ static long max_reply_duration;
 // 功能描述：获取终端ESAM信息 
 int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 {
-	//ACE_MT(ACE_GUARD_RETURN(ACE_Recursive_Thread_Mutex, autolock,lock_,-1));
-
 	int recvDataBufPos = 0;
 	int _rs = -1;
 	int _pos = 0; 
 	unsigned char _ChipStatus;
-	//unsigned char *tempDataBuf = new unsigned char[40];
 	unsigned char *tempDataBuf = (unsigned char *)malloc(40 * sizeof(unsigned char));
-	unsigned char ChipSerFramer[] = {0x80,0x0E,0x00,0x02,0x00,0x00,};//芯片序列号
-	//MY_ACE_ERROR((LM_ERROR,"GetTermESAMInfo ChipSer!!!\n"));
+	unsigned char ChipSerFramer[] = {0x80,0x0E,0x00,0x02,0x00,0x00,};//
 	_rs = MESamComRecv(ChipSerFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
-	//MY_ACE_ERROR((LM_ERROR,"GetTermESAMInfo ChipSer finish!!!\n"));
 	if (_rs != 0)
 	{
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-ChipSerial failed!!!\n"));
 		printf("GetTermESAMInfo-ChipSerial failed!!!\n");
 		return -1;
 	}
-	//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-ChipSerial success!!!\n"));
 	printf("GetTermESAMInfo-ChipSerial success!!!\n");
-	unsigned char ChipStaSerFramer[] = {0x80,0x0E,0x00,0x05,0x00,0x00,};//芯片状态
+	unsigned char ChipStaSerFramer[] = {0x80,0x0E,0x00,0x05,0x00,0x00,};//鑺墖鐘舵€?
 	_rs = MESamComRecv(ChipStaSerFramer,6,&_ChipStatus,&_pos,sizeof(_ChipStatus));
-	//MY_ACE_ERROR((LM_ERROR,ACE_TEXT("TMESamComMgr::GetTermESAMInfo-ChipState %d!!!\n"), _ChipStatus));
 	printf("GetTermESAMInfo-ChipState %d!!!\n", _ChipStatus);
 	if (_rs != 0)
 	{
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-ChipState failed!!!\n"));
 		printf("GetTermESAMInfo-ChipState failed!!!\n");
 		return -1;
 	}
-	//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-ChipState success!!!\n"));
 	printf("GetTermESAMInfo-ChipState success!!!\n");
 	unsigned char CerSerFramer[] = {0x80,0x32,0x00,0x02,0x00,0x00,};//证书序列号
 	CerSerFramer[2] = _ChipStatus;
 	_rs = MESamComRecv(CerSerFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)
 	{
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-CertificationSerial failed!!!\n"));
 		printf("GetTermESAMInfo-CertificationSerial failed!!!\n");
 		return -1;
 	}
-	//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-CertificationSerial success!!!\n"));
 	printf("GetTermESAMInfo-CertificationSerial success!!!\n");
 	unsigned char CountFramer[] = {0x80,0x0E,0x00,0x03,0x00,0x00,};//计数器
 	_rs = MESamComRecv(CountFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)
 	{
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-Counter failed!!!\n"));
 		printf("GetTermESAMInfo-Counter failed!!!\n");
 		return -1;
 	}
-	//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-Counter success!!!\n"));
 	printf("GetTermESAMInfo-Counter success!!!\n");
 	recvDataBuf[recvDataBufPos ++] = _ChipStatus;//芯片状态
 	unsigned char keySerFramer[] = {0x80,0x0E,0x00,0x06,0x00,0x00,};//密钥版本
 	_rs = MESamComRecv(keySerFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)
 	{
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-KeyVersion failed!!!\n"));
 		printf("GetTermESAMInfo-KeyVersion failed!!!\n");
 		return -1;
 	}
@@ -151,28 +136,17 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 #ifndef ACE_WIN32
 	//time_t _MSendDt;
 	int _len;
-	//MY_ACE_ERROR((LM_ERROR,"MESamComRecv in!!!\n"));
-	//if (m_MESAMBaseClass == NULL)
-	//{
-		//printf("m_MESAMBaseClass is NULL!!!\n");
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::MESamComRecv m_MESAMBaseClass is NULL!!!\n"));
-		//return -1;
-	//}
-
 	int res=0,retry =1;
 #define MAX_WAIT_ESAM_TIME 12
 	if (timeout < 0)
 		timeout = MAX_WAIT_ESAM_TIME;
 	while (retry--)
 	{
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::MEsamSend :"));
 		printf("MEsamSend :");
 		for (_i = 0; _i < _MSendFramepos ; _i++ )
 		{
-			//MY_ACE_ERROR((LM_ERROR,"%02X ",_MSendFrame[_i]));
 			printf("%02X ",_MSendFrame[_i]);
 		}
-		//MY_ACE_ERROR((LM_ERROR,"\n"));
 		printf("\n");
 		if (_MSendFramepos > 0)
 		{
@@ -197,15 +171,12 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 			//&& m_MESAMBaseClass->m_MRecvLen > 0)
 		if((m_MRecvLen = MEsamDataRecv(timeout, m_MRecvBuf)) >= 0)
 		{
-			//MY_ACE_ERROR((LM_ERROR,"\nTMESamComMgr::MESamComRecv data:"));
 			printf("MESamComRecv data:");
 			//for (int _j = 0; _j < m_MESAMBaseClass->m_MRecvLen ; _j++)
 			for (_j = 0; _j < m_MRecvLen; _j++)
 			{
-				//MY_ACE_ERROR((LM_ERROR,ACE_TEXT("%02X "),m_MESAMBaseClass->m_MRecvBuf[_j]));
 				printf("%02X ", m_MRecvBuf[_j]);
 			}
-			//MY_ACE_ERROR((LM_ERROR,"\n"));
 			printf("\n");
 
 			//if (m_MESAMBaseClass->m_MRecvBuf[0] == 0x55)
@@ -221,7 +192,6 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 					if (time_past > max_reply_duration)
 					{
 						max_reply_duration = time_past;
-						//MY_ACE_ERROR((LM_ERROR,"esam max reply duration increased to %d.%06d\n",max_reply_duration.sec(),max_reply_duration.usec()));
 						printf("esam max reply duration increased to %ld\n", max_reply_duration);
 					}
 					//MY_ACE_ERROR((LM_ERROR,"44444444444\n"));
@@ -230,7 +200,6 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 					_len = (m_MRecvBuf[3] << 8)+m_MRecvBuf[4];
 					if (*_RecvDataBufPos + _len > recvBufSize)
 					{
-						//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::MESamComRecv _RecvDataBufPos+_len %d+%d > recvBufSize %d !!!\n",*_RecvDataBufPos,_len,recvBufSize));
 						printf("MESamComRecv _RecvDataBufPos+_len %d+%d > recvBufSize %d !!!\n", *_RecvDataBufPos,_len,recvBufSize);
 						return -1;
 					}
@@ -242,14 +211,12 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 				}
 				else
 				{
-					//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::MESamComRecv m_MESAMBaseClass->m_MRecvBuf not found 0x9000 !!!\n"));
 					printf("MESamComRecv m_MESAMBaseClass->m_MRecvBuf not found 0x9000 !!!\n");
 					//_rs = -1;
 				}
 			}
 			else
 			{
-				//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::MESamComRecv m_MESAMBaseClass->m_MRecvBuf[0] not found 0x55 !!!\n"));
 				printf("MESamComRecv m_MESAMBaseClass->m_MRecvBuf[0] not found 0x55 !!!\n");
 				//_rs = -1;
 			}
@@ -264,7 +231,6 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 	}//while
 	if (_rs < 0/*abs(_MSendDt-time(NULL)) >=timeout*/)
 	{
-		//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::MESamComRecv timed out %d !!!\n",timeout));
 		printf("MESamComRecv timed out %d !!!\n", timeout);
 		//_rs = -1;
 	}
@@ -288,3 +254,91 @@ int ByteReverse(unsigned char *srcData, unsigned int srcSize, unsigned char *des
 	}
 	return 0;
 }
+
+
+int MainStaGetTermCertiInfo(u8 *MainstaR4, u16 R4Len, u8 *recvDataBuf, u32 *recvBufSize)
+{
+	if(R4Len != 8) return -1;
+	if(!MainstaR4||!recvDataBuf||!recvBufSize) return -1;
+
+	int ret = 0,pos=0,i;
+	u8 sBuf[200],*pRev,*pTem,status;
+	u8 GChipNo[] = {0x80,0x0e,0x00,0x02,0x00,0x00};
+	u8 GOffCount[] = {0x80,0x0e,0x00,0x03,0x00,0x00};
+	u8 GChipStatus[] = {0x80,0x0e,0x00,0x05,0x00,0x00};
+	u8 GCertiNo[6] = {0x80,0x32,0x01,0x02,0x00,0x00};
+	u8 GKeyVer[] = {0x80,0x0e,0x00,0x06,0x00,0x00};
+	u8 GTermR5[] = {0x80,0x1a,0x08,0x00,0x00,0x00};
+	u8 GMac[] = {0x80,0x48,0xc0,0x39,0x02};
+	u8 *pGetInfo[] = {GChipNo,GOffCount,GChipStatus,GCertiNo,GKeyVer,GTermR5};
+	u8 RevLen[] = {8,4,1,16,8,8};
+	u8 SendLen[] = {sizeof(GChipNo),sizeof(GOffCount),sizeof(GChipStatus),sizeof(GCertiNo),sizeof(GKeyVer),sizeof(GTermR5)};
+
+	pTem = sBuf;
+	memset(sBuf,0,sizeof(sBuf));
+	for(i=0;i<sizeof(pGetInfo)/sizeof(pGetInfo[0]);i++)
+	{
+		pos = 0;
+		ret = MESamComRecv(pGetInfo[i],SendLen[i],pTem,&pos,RevLen[i]);
+		if(ret||(pos!=RevLen[i])) 
+		{
+			printf("certificate info Get fail-%d",i);
+			return ret;
+		}
+		if(2==i) GCertiNo[2] = *pTem;
+		pTem += pos;		
+	}
+
+	
+	pRev = recvDataBuf;
+	pos = 0;
+	memcpy(pRev,sBuf,RevLen[0]);//Term certificate number
+	pRev += RevLen[0];
+	
+	pos = RevLen[0]+RevLen[1]+RevLen[2];
+	memcpy(pRev,sBuf+pos,RevLen[3]);//
+	pRev += RevLen[3];
+	
+	pos = (int)(RevLen[0]);
+	memcpy(pRev,sBuf+pos,RevLen[1]);//counter
+	pRev += RevLen[1];
+	
+	pos = (int)(RevLen[0]+RevLen[1]);
+	memcpy(pRev,sBuf+pos,RevLen[2]);//status
+	pRev += RevLen[2];
+	
+	pos = (int)(RevLen[0]+RevLen[1]+RevLen[2]+RevLen[3]);
+	memcpy(pRev,sBuf+pos,RevLen[4]);//secret key
+	pRev += RevLen[4];
+	
+	pos = (int)(RevLen[0]+RevLen[1]+RevLen[2]+RevLen[3]+RevLen[4]);	
+	memcpy(pRev,sBuf+pos,RevLen[5]);//R5
+	pRev += RevLen[5];
+	
+	memset(sBuf,0,sizeof(sBuf));
+
+	pTem = sBuf;
+	memcpy(pTem,GMac,sizeof(GMac));
+	pTem += sizeof(GMac);
+	for(i=0;i<R4Len;i++)
+	{
+		pTem[i] = MainstaR4[i];
+		pTem[R4Len+i] = ~MainstaR4[i];
+	}
+	pTem += 2*R4Len;
+	memcpy(pTem,recvDataBuf,pRev-recvDataBuf);
+	pTem += pRev-recvDataBuf;
+	pos = 0;	
+	ret = MESamComRecv(sBuf,pTem-sBuf,pRev,&pos,4);
+	if(ret||(pos!=4)) return -1;
+	pRev += 4;
+	*recvBufSize = pRev-recvDataBuf;
+	return 0;
+}
+
+
+
+
+
+
+

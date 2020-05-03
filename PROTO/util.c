@@ -119,3 +119,101 @@ int mymsleep(unsigned int ms)
 	ts.tv_nsec = (ms % 1000) * 1000000ul;//200ms
 	return	nanosleep(&ts, NULL);
 }
+
+unsigned char DEC_To_BCD(unsigned char Data_DEC)
+{
+	unsigned char Data_BCD = 0;
+	
+	Data_BCD = ((Data_DEC / 10) << 4) + (Data_DEC % 10);
+	
+	return Data_BCD;
+}
+
+//把数组的高字节和低字节位置全部对调（镜像）
+void Array_Mirror(unsigned char* P_Array, int Length)
+{
+	int i = 0;
+	int  Temp = 0;
+	int Length_Half = 0;
+	
+	Length_Half = Length / 2;
+	
+	for(i = 0; i < Length_Half; i++)
+	{
+		Temp = *(P_Array + i);
+		*(P_Array + i) = *(P_Array + Length - 1 - i);
+		*(P_Array + Length - 1 - i) = Temp;
+	}
+}
+
+//解包645协议
+void Protocol_645_Unpack(unsigned char *P_String, unsigned char Length)
+{
+	unsigned int i = 0;
+	
+	//第一步，地址域高低字节翻转，恢复正常
+	Array_Mirror(P_String + 1, 6);
+	
+	//第二步，数据域减去0x33
+	for(i = 0; i < P_String[9]; i++)
+	{
+		P_String[10 + i] -= 0x33;
+	}
+}
+
+//打包645协议
+void Protocol_645_Pack(unsigned char *P_String, unsigned char Length)
+{
+	unsigned int	i = 0;
+	
+	//第一步，地址域高低字节翻转，小端传送
+	Array_Mirror(P_String + 1, 6);
+	
+	//第二步，数据域所有字节+0x33
+	for(i = 0; i < P_String[9]; i++)
+	{
+		P_String[10 + i] += 0x33;
+	}
+}
+
+//计算校验和
+unsigned char GetSum8(unsigned char *P_Data, unsigned int Length)
+{
+	unsigned char	Sum = 0;
+	unsigned int	i   = 0;
+	
+	for(i = 0; i < Length; i++)
+	{
+		Sum += P_Data[i];
+	}
+	
+	return Sum;
+}
+
+//*****************************************************************************
+//	函数名称: BitReverse
+//	功能描述: 对数组元素取反        
+//	参数说明:
+//	pbuf [in]
+//  pbufrev [out]
+//	返 回 值: 
+//	0 : 成功
+//	其它为错误码   
+//	数组元素取反,例如1 2 3 -> fe fd fc
+//*****************************************************************************
+int BitReverse(unsigned char *srcData, unsigned int srcSize, unsigned char *destData)
+{
+	int i = 0;
+
+	if ((NULL == srcSize) || (NULL == destData))
+	{
+		return -1;
+	}
+	
+	for(i=0; i<srcSize; i++)
+	{
+		destData[i] = ~srcData[i];
+	}
+	return 0;
+}
+

@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
 #include "file.h"
 #include <sys/file.h>
+
 
 /*************************************************
 º¯ Êý Ãû:       
@@ -224,6 +226,7 @@ int delsaveconfparam(const char* confile, const char*name, int namelen, const ch
 	filesize = ftell(fd);
 	found = 0;
 	if (filesize < 0)
+		//goto getout;
 	{
 		free(linebuf);
 		if (fd)
@@ -407,6 +410,27 @@ int getConfPara(const char* confile, const char*name, char*value, int value_size
 	fclose(fd);
 	return ret;
 }
+
+int GetFileDataGroup(const char* confile,char *para[],int group)
+{
+    if(!confile||!para||!group) return 0;
+
+    int i,ret = -1;
+    char *pData;
+    
+    for(i=0;i<group;i++)
+    {
+        if((para[i*3]==NULL)||(para[1+i*3]==NULL)||(para[2+i*3]==NULL)) break;
+        pData = para[2+i*3];
+        ret = getConfPara(confile,para[i*3],para[1+i*3],100,*pData);
+        if(ret) break;
+    }
+    if(i>=group) ret = 0;
+    return ret;
+}
+
+
+
 int SaveConfMultiGroup(const char* confile, char *para[],int group)
 {
     if(!confile||!para||!group) return 0;
@@ -566,10 +590,4 @@ int SaveConfMultiGroup(const char* confile, char *para[],int group)
 	if(FileBufNew) free(FileBufNew);
 	return ret;
 }
-
-#define APN_CONF_FILE_PATH "./config/apn_para.conf"
-
-
-
-
 

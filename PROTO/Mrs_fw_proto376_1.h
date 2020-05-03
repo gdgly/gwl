@@ -60,22 +60,19 @@
 
 #define	NULL_BCD		0xEE
 
+#define BCD2INT(x)      (u32)((x)/16 * 10 + ((x) % 16))
+
 
 /******************数据格式*******************/
 typedef struct
 {
-    u32 MGW:4,     //秒个位
-        MSW:4;     //秒十位
-    u32 FGW:4,     //分个位
-        FSW:4;     //分十位
-    u32 SGW:4,     //时个位
-        SSW:4;     //时十位
-    u32 RGW:4,     //日个位
-        RSW:4;     //日十位
-    u32 YGW:4,     //月个位
-        YSW:4;     //月十位
-    u32 NGW:4,     //年个位
-        NSW:4;     //年十位
+    u8 sec;
+	u8 min;
+	u8 hour;
+	u8 day;
+	u8 month:5;
+	u8 week:3;
+	u8 year;
 }__attribute__((packed)) SJGS_01;//数据格式01
 
 typedef struct
@@ -392,20 +389,19 @@ typedef struct stFrame13761MaSType
 	uint8_t msta : 7;
 }stFrame13761MaSType;
 
-typedef union unFrame13761M_Ma_unType
+typedef union 
 {
 	stFrame13761MaSType ma_s;
 	uint8_t value;
 }unFrame13761M_Ma_unType;	
 
-#pragma pack(1)//取消字节对齐，按1字节对齐
-typedef struct stFrame13761AddrType
+
+typedef struct 
 {
 	uint16_t districtCode;
 	uint16_t termAddr;
 	unFrame13761M_Ma_unType mainStn_TermGrp_addr;
-}stFrame13761AddrType;
-#pragma pack()
+}__attribute__((packed)) stFrame13761AddrType;
 //LINE202
 
 //204
@@ -426,7 +422,6 @@ typedef struct stFrame13761UserDataType
 //217
 
 //帧头
-#pragma pack(1)//取消字节对齐，按1字节对齐
 typedef struct stFrame13761Head
 {
 	uint8_t header1;					// 1
@@ -436,8 +431,7 @@ typedef struct stFrame13761Head
 	stFrame13761CtrlType control;		// 1
 	stFrame13761AddrType addr;			// 5
 	stFrame13761UserDataType userdata;	// 1+1+data 
-}stFrame13761Head;
-#pragma pack()
+}__attribute__((packed)) stFrame13761Head;
 
 
 
@@ -487,6 +481,8 @@ typedef struct AppAuxEC               	//事件计数器EC（上行）
 	uint8_t AppAuxEC2;          	 	//一般事件计数器EC2
 }AppAuxEC;
 
+
+//附加信息域可由消息认证码字段PW、事件计数器EC、时间标签Tp
 typedef struct AppAuxPwd				//附加信息域
 {
 	uint8_t  appAuxPw[16];				//消息认证码字段PW（下行）
@@ -527,10 +523,6 @@ typedef  union U_IP
 	uint32_t IP;
 	st_IP st_IP;
 }U_IP;
-#pragma pack(1) 
-
-
-#pragma pack() 
 
 
 
@@ -598,7 +590,7 @@ typedef struct //低位在先
     u32   DA[2];              //pn
     u32   DT[2];              //fn 
     SJGS_01  termCurDate;
-}__attribute__((packed)) DATA_AFN0C_F2;//F2：终端日期查询
+}__attribute__((packed)) DATA_AFN0C_F2;			//F2：终端日期查询
 
 
 typedef struct
@@ -607,7 +599,7 @@ typedef struct
     u32 DT[2];                //fn
     u32 Dayvalue;
     u32 Monthvalue;    
-}__attribute__((packed))DATA_AFN0C_F10;//F10：通信流量
+}__attribute__((packed))DATA_AFN0C_F10;			//F10：通信流量
 
 
 
@@ -652,26 +644,23 @@ typedef struct
     u8  longitude_B_GW:4,		//十位		分
         longitude_B_SW:4;		//个位
         
-    u16 longitude_D_GW:4,		//十位		度
-        longitude_D_SW:4,		//个位
-        longitude_D_BW:4,		//保留
-        longitude_D_BLW:4;		//百位
+    u16 longitude_D_GW:4,		//个位		度
+        longitude_D_SW:4,		//十位
+        longitude_D_BW:4,		//百位
+        longitude_D_BLW:4;		//保留
 
-	u16 latitude_S_SFW:4,		//十分位		秒
-        latitude_S_BFW:4,		//百分位
-        latitude_S_GW:4,		//十位
-       	latitude_S_SW:4;		//个位
+	u16 latitude_S_BFW:4,		//百分位		秒
+        latitude_S_SFW:4,		//十分位
+        latitude_S_GW:4,		//个位
+       	latitude_S_SW:4;		//十位
        	
-    u8  latitude_B_GW:4,		//十位		分
-        latitude_B_SW:4;		//个位
+    u8  latitude_B_GW:4,		//个位		分
+        latitude_B_SW:4;		//十位
         
-    u16 latitude_D_GW:4,		//十位		度
-        latitude_D_SW:4,		//个位
-        latitude_D_BW:4,		//保留
-        latitude_D_BLW:4;		//百位
-	
-	//u8 longitude[5];				//经度,秒，分，度(F的定义：F=0， 表示东经或北纬；F=l,表示西经或南纬。)
-	//u8 latitude[5];				//纬度,秒，分，度(F的定义：F=0， 表示东经或北纬；F=l,表示西经或南纬。)
+    u16 latitude_D_GW:4,		//个位		度
+        latitude_D_SW:4,		//十位
+        latitude_D_BW:4,		//百留
+        latitude_D_BLW:4;		//保留	
 }__attribute__((packed))stTermLocation;
 
 
@@ -685,14 +674,12 @@ typedef struct
 	uint16_t Port_bak;
 	
 	uint8_t APN[16];	
-}stMainStationIPPort;
+}__attribute__((packed))stMainStationIPPort;
 
 
 //AFN04_F7;//F7:终端IP地址和端口
 typedef struct
 {
-    u8   DA[2];              //pn
-    u8   DT[2];              //fn 
     //终端IP
     union
     {
@@ -799,6 +786,12 @@ typedef struct
 }__attribute__((packed)) current_transformer_rate_stru;	
 
 
+typedef struct
+{
+	unsigned char VirUser[32];
+	unsigned char VirPasswd[32];
+}sVirtualNet;
+
 
 //巡检仪设备系统信息
 typedef struct
@@ -817,11 +810,120 @@ typedef struct
 }NV_CHARGE_SYSTEM_INFO;
 
 
+//AFN00的返回帧数据域
+typedef struct stError
+{
+	u8 afn;				//要被确认的报文的 AFN	
+	u8 Di[4];			//被确认的数据单元标识 1  
+	u8 err;				//出错否认代码  0正确、1其他错误、表地址重复
+}stError;
 
 
 
+//链路层通信回复
+typedef struct stUpflag
+{
+	u8 signAck;			//登录回复
+	u8 heatAck;			//心跳回复
+}stUpflag;
 
 
+
+#if 0
+#define CMDMSGNUM  10
+#define CHARGET_TEST_NUM 3
+
+typedef struct stControlCMD
+{
+	volatile u8 cmd;//0空闲，1启动充电，2叠加充电，3停止充电
+	volatile u8 srcpn;
+	
+	volatile u8 dst;
+	volatile u8 dstpn;
+	
+	volatile u16 srcFrmLen;
+	u8 srcFrm[100];
+	//stChargerACK ChargAck;
+	volatile u16 acklen;
+	u8 ackBuf[50];
+	volatile u32 timeout;
+	
+}stControlCMD;
+
+typedef struct
+{
+	volatile u8 cmd;//0空闲，1启动充电，2叠加充电，3停止充电
+	volatile u8 srcpn;
+	
+	volatile u8 dst;
+	volatile u8 dstpn;
+	
+	volatile u16 srcFrmLen;
+	u8 srcFrm[60];
+	//stChargerACK ChargAck;
+	volatile u16 acklen;
+	u8 ackBuf[50];
+	volatile u32 timeout;
+	
+}stConChargeCMD;
+
+
+typedef struct{
+	volatile u8 flag;
+	volatile u8  repeatUpgradeCount;
+	volatile u16 update_size;
+	volatile u32 total_size;
+	u8 softVer[4];
+	volatile u8 crc_error;
+	volatile u8 crc_error_cnt;
+}stRepeatUpgrade;
+
+
+typedef struct stControlMsg
+{
+	volatile u8 cnt;//消息容量计数器
+	stControlCMD ControlCMD[CMDMSGNUM];
+}stControlMsg;
+
+typedef struct {
+	volatile u8 cnt;
+	stConChargeCMD ControlCMD[CHARGET_TEST_NUM];
+
+}stChargeTest;
+
+
+#define GPRSMSGNUM 20
+
+typedef struct stMsg
+{
+	u8 len;//消息容量计数器
+	u8 data[100];
+}stMsg;
+
+
+#define ENDCHARGEMSGNUM 10
+
+typedef struct stMsg1
+{
+	u16 len;
+	u16 report_sucesss_flag;
+	u8 seq;
+	u8 data[60];
+}stMsg1;
+
+typedef struct stGprsMsg
+{
+	u8 cnt;							 //消息容量计数器
+	stMsg msg[GPRSMSGNUM];
+}stGprsMsg;
+
+//
+typedef struct stEndChargeMsg{
+	u8 cnt;							 //消息容量计数器
+	stMsg1 msg[ENDCHARGEMSGNUM];
+	u16 deviceFaultStatus;			 //用于记录设备故障状态
+}stEndChargeMsg;
+#endif
 
 
 
@@ -856,25 +958,22 @@ typedef struct
 
 typedef struct
 {
-	//u8 DA[2];				//pn
-	//u8 DT[2];				//fn
-	u8 EventNum;	//事件数量
+	u8 DA[2];				//pn
+	u8 DT[2];				//fn
+	u8 EventNum;			//事件数量
 }__attribute__((packed))EventReqReply;
 
 
 //AFN0E应答数据体头部-请求事件
 typedef struct  
 {
-	//u8 DA[2];				//pn
-	//u8 DT[2];				//fn
+	u8 DA[2];				//pn
+	u8 DT[2];				//fn
 	u8 EC1;
 	u8 EC2;
 	u8 Pm;
 	u8 Pn;
 }__attribute__((packed))EventsBlockHead;
-
-
-
 
 
 
@@ -885,7 +984,8 @@ typedef struct
     u8 Le;               //事件长度
     SJGS_15 time;        //变更时间
     u8  CSH:1,           //初始化
-        VER:1;           //版本
+        VER:1,           //版本
+        Reserv:6;
     u8  VerOld[4];       //变更前版本
     u8  VerNew[4];       //变更后版本
 }__attribute__((packed))stru_sjjl_ERC1;
@@ -905,8 +1005,10 @@ typedef struct
 {
     u8 ERCcode;          //事件代码ERC
     u8 Le;               //事件长度
-    SJGS_15 time;        //发生时间
-	u8 Flag;			 //事件标志					
+    SJGS_15 time;        //发生时间		 		
+	u8	LoseTerminal:1,	 //事件标志	
+		LosePot:1,
+		Reserv1:6;
 }__attribute__((packed))stru_sjjl_ERC2;     
 
 
@@ -1004,11 +1106,11 @@ typedef struct
 //ERC32终端与主站通信流量超门限事件记录
 typedef struct
 {
-    u8 ERCcode;          //事件代码ERC
-    u8 Le;               //事件长度
-    SJGS_15 time;        //发生时间
-    u8 dyll;             //当月流量
-    u8 llmx;             //流量门限
+    u8 ERCcode;          			 //事件代码ERC
+    u8 Le;               			 //事件长度
+    SJGS_15 time;       			 //发生时间
+    u8 CommFlux[4];             	 //当月流量
+    u8 CommFluxLimit[4];             //流量门限
     
 }__attribute__((packed))stru_sjjl_ERC32;
 
@@ -1064,15 +1166,16 @@ typedef struct
 }__attribute__((packed))DATA_AFN0E_F3_ERC40;
 
 
+
+
 //ERC41：对时事件记录
 typedef struct
 {
 	u8 ERCcode;                     //事件代码ERC
     u8 Le;                          //事件长度
-	u8 mp[2];						//测量点号
+	u8 mp[2];						//测量点号, 0表示终端
 	SJGS_01 TimeBeforeAdjust;		//校时前时刻
 	SJGS_01 TimeAfterAdjust;		//校时后时刻
-
 }__attribute__((packed))stru_sjjl_ERC41;
 
 typedef struct
@@ -1089,7 +1192,76 @@ typedef struct
 
 
 
+/***********AFN09终端信息参数结构体****************************/
+//F1终端版本信息
+typedef struct stTermVerInfo
+{
+	u8 factry_code[4];				//厂商代码
+	u8 term_number[8];				//设备编号
+	u8 soft_ver[4];					//软件版本
+	SJGS_20 release_time;			//发布日期,bcd码日，月，年				A.20
+	u8 capacity_info[11];			//配置容量信息码
+	u8 Protocol_version[4];			//协议版本号
+	u8 hardware_ver[4];				//硬件版本号
+	SJGS_20 hardware_release_time;	//发布日期,bcd码日，月，年				A.20
+}stTermVerInfo;
 
+
+//F9远程通信模块版本信息
+typedef struct RemoteVerInfo
+{
+	u8 factry_code[4];				//厂商代码
+	u8 module_type[8];				//模具型号
+	u8 soft_ver[4];					//软件版本
+	SJGS_20 release_time;			//发布日期,bcd码日，月，年				A.20
+	u8 hardware_ver[4];				//硬件版本号
+	SJGS_20 hardware_release_time;	//发布日期,bcd码日，月，年				A.20
+	u8 ICCID[20];					//SIM卡ICCID
+}RemoteVerInfo;
+
+
+
+
+/****************************文件升级************************/
+
+#define START_AND_PROCESS_FRAME  	0x00
+#define END_FRAME  					0x02
+
+#define FIST_LEN_FRAME				16
+#define AFTER_LEN_FRAME 			64
+#define TIMEOUT_CNT                 100
+
+typedef struct{
+	volatile u8 flag;
+	volatile u8  repeatUpgradeCount;
+	volatile u16 update_size;
+	volatile u32 total_size;
+	u8 softVer[4];
+	volatile u8 crc_error;
+	volatile u8 crc_error_cnt;
+}stRepeatUpgrade;
+
+typedef struct
+{
+	volatile u8 flag;// 1升级文件完整，0不完整
+	volatile u8 uncopyflag;//0:已经拷贝，1未拷贝
+	volatile u8 runTestflag;//1可运行，其它未运行
+	volatile u16 updatasize;//单位:k
+	volatile u32 total_size;
+	u8  fileHead[16];
+}NV_UPDATA_FILE_FLAG;
+
+
+typedef struct stFlieTransmit
+{
+	u8 Flag;//文件标识//0--7,0:清除传输文件
+	u8 mode;//文件属性//00H 起始/中间 01H 结尾
+	u8 cmd;//0--2	//文件指令	0:376.1(要应答,但主站发下帧前不等应答) 1:FTP 2:组地址升级?(不用应答)
+	u16 Num;//总段数
+	u32 DI;              //第i段表示从0----Num-1
+	u16 dataLen;		//第i段的长度LF
+	u8 data[0];			//和LF对应的数据内容
+}stFlieTransmit;
 
 
 

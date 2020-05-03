@@ -15,29 +15,22 @@
 #include <fcntl.h>
 #include <sys/sysinfo.h>
 #include<termios.h>  
- 
 #include<arpa/inet.h> 
-//#include<netinet/tcp.h>
-
-
-
-
-
 #include "Server_com.h"
-//#include "uart.h"
-//#include "gprs_task.h"
-
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <linux/tcp.h>
-
 #include "Mrs_fw_proto376_1.h"
 #include "appdata.h"
+#include "para.h"
+#include "file.h"
+#include "ListTimer.h"
+#include "local_fun.h"
+
+
 
 int login_ok = 0;
-// 是否登录系统
-CIRCUIT_SYSTEM_INFO_STRU gCircuitSystemInfo={0};
 
 #define AFN_37621_OFFSET 12
 
@@ -52,13 +45,14 @@ CONNECT_TERM HOST =
 };
 	
 //主站地址，读取配置文件初始化
-CONNECT_TERM MAINSTATION = 
-{
-    -1,
-    "192.168.1.141",
-    10000,
-    0,
-};
+//CONNECT_TERM MAINSTATION = 
+//{
+//    -1,
+//    "192.168.1.141",
+//    10000,
+//    0,
+//};
+
 
 /*************************************************
 函 数 名:       
@@ -82,29 +76,6 @@ long GET_SYS_UPTIME()
 }
 
 
-
-
-/*************************************************
-函 数 名:       
-功能描述:         
-输    入:           
-输    出:      
-返    回:                  
-*************************************************/
-int printhexdata(unsigned char *data,int len)
-{
-	int i;
-    //DPRINT("[");
-	printf("[");
-	for(i=0;i<len;i++)
-	{
-        //DPRINT("%02x ",data[i]);
-		printf("%02x ",data[i]);
-	}
-    //DPRINT("\b]\n");
-	printf("\b]\n");
-	return len;
-}
 
 /*************************************************
 函 数 名:        
@@ -179,27 +150,21 @@ int RecvData(int fd, unsigned char *recvbuf, int recvlen, int timeout)
         len = recv(fd,recvbuf,recvlen,0);
         if(len > 0)
         {
-            //DPRINT("RecvData HOST READ:\n");			
-            //printf("RecvData HOST READ:\n");
-            //printhexdata(recvbuf, len);
             return len;
         } 
         else if(len==0)
         {
-            //DPRINT("RecvData HOST read error,%s\n",strerror(errno));			
             printf("RecvData HOST read error,%s\n",strerror(errno));
             err=-2;
         }
 	} 
     else if(err == 0)   //time out
 	{
-        //DPRINT("RecvData HOST read timeout\n");		
         printf("RecvData HOST read timeout\n");
         err = -3;
 	} 
     else                //error
     {
-        //DPRINT("RecvData HOST read error,%s\n",strerror(errno));
         printf("RecvData HOST read error,%s\n",strerror(errno));
         err = -1;
     }
@@ -216,6 +181,10 @@ static inline void msleep(unsigned long ms)
     select(0, NULL, NULL, NULL, &tv);
 }
 
+
+extern long to_read_;
+extern long to_write_;
+
 //服务器线程
 void *serrver_worker(void *arg)    /* 创建出来的子线程所执行的权力函数 */
 {
@@ -225,8 +194,11 @@ void *serrver_worker(void *arg)    /* 创建出来的子线程所执行的权力函数 */
 	int	rv;	
     int usDataLen = 0, len = 0;
 
-	UINT32 lasttime = 0;
-	UINT32 curtime = 0;
+	UINT32 Linklasttime = 0;
+	UINT32 LinkCurtime = 0;
+
+	UINT32 Eventlasttime = 0;
+	UINT32 EventCurtime = 0;
 	
 	if(!arg)    /* 判断参数是否被赋值 */
 	{
@@ -254,11 +226,11 @@ void *serrver_worker(void *arg)    /* 创建出来的子线程所执行的权力函数 */
 	while(1)    
 	{
 		memset(datafrm, 0, sizeof(datafrm)); 
-		curtime = GET_SYS_UPTIME();
-		printf("curtime = %d\n",curtime);
-		if(curtime - lasttime > 60)
+		LinkCurtime = GET_SYS_UPTIME();
+		EventCurtime = GET_SYS_UPTIME();
+		if(LinkCurtime - Linklasttime > (GetCiSysInfo()->UpCommuPara.heart_beats*60))
 		{
-			lasttime = curtime;
+			Linklasttime = LinkCurtime;
 			buf = (unsigned char *)malloc(sizeof(unsigned char) * 50);
 			memset(buf, 0, sizeof(char)*50);
 			sendLinkPacktoMainStaion(3, buf, &usDataLen);					//发送心跳
@@ -275,13 +247,35 @@ void *serrver_worker(void *arg)    /* 创建出来的子线程所执行的权力函数 */
 				continue;
 			}
 		}
+
+		if(EventCurtime - Eventlasttime > 5)
+		{
+			stru_sjjl_ERC1 ev1 = {0};
+			//printf("CreateEvent1\n\n\n");
+			//CreateEvent1(ev1);
+			Eventlasttime = EventCurtime;
+			send_event(client_fd);
+
+			//处理流量
+			dealFlow();
+			//存储流量
+			save_comm_flow(1);
+		}
+
+		
 		
 		//read the login frame to get terminal address
-		usleep(100*1000);
+		
+		//usleep(100*1000);		-x
 		len = RecvData(client_fd, datafrm, sizeof(datafrm), 2*1000);
+		if(len > 0)
+		{
+			to_read_ += len;	//统计下发流量
+		}
+		
 		if (len >= 16)
 		{
-			printf("recv data:\n");
+			printf("server recv data:\n");
 			printhexdata(datafrm, len);
 			Protocl13761ParseData((unsigned char *)datafrm, len,client_fd);
 		}
@@ -295,7 +289,7 @@ void *serrver_worker(void *arg)    /* 创建出来的子线程所执行的权力函数 */
 		{
 			printf("no frame received, ret %d.\n",len);
 		}
-		usleep(1000);
+		//usleep(1000);		-x
 	} 
 }
 
@@ -400,46 +394,47 @@ connect:
 	int flags = fcntl(client_fd, F_GETFL, 0);
 	fcntl(client_fd, F_SETFL, flags|O_NONBLOCK);
 	
+	
+    sTermSysInfo *para = GetCiSysInfo();
 	serveraddr.sin_family = AF_INET;    						//填充网络地址类型
-	serveraddr.sin_port = htons(MAINSTATION.PORT);   			//注意，端口号是short,
-	serveraddr.sin_addr.s_addr = inet_addr(MAINSTATION.IP);
-
-		while(1)
+	serveraddr.sin_port = htons(para->MainStation.Port_main);   			//注意，端口号是short,
+	serveraddr.sin_addr.s_addr = para->MainStation.u_IP_main.IP;
+	while(1)
+	{
+		ret = connect(client_fd, (struct sockaddr *)&serveraddr,sizeof(serveraddr));  	// 连接服务器
+	    if(ret <0)
 		{
-			ret = connect(client_fd, (struct sockaddr *)&serveraddr,sizeof(serveraddr));  	// 连接服务器
-		    if(ret <0)
+			perror("connect");
+			sleep(10);			//没10s连接一次主站
+			continue;
+		}
+		else
+		{
+			buf = (unsigned char *)malloc(sizeof(unsigned char) * 50);
+			memset(buf, 0, sizeof(char)*50);
+			sendLinkPacktoMainStaion(1, buf, &usDataLen);
+			if((rv = SendData(client_fd, buf, usDataLen)) >= usDataLen)
 			{
-				perror("connect");
-				sleep(10);			//没10s连接一次主站
-				continue;
+				free(buf);
+				login_ok = 1;
+				printf("login success\n");
 			}
 			else
-			{
-				buf = (unsigned char *)malloc(sizeof(unsigned char) * 50);
-				memset(buf, 0, sizeof(char)*50);
-				sendLinkPacktoMainStaion(1, buf, &usDataLen);
-				if((rv = SendData(client_fd, buf, usDataLen)) >= usDataLen)
-				{
-					free(buf);
-					login_ok = 1;
-					printf("login success\n");
-				}
-				else
-				{				
-					free(buf);
-					usleep(2000);
-					continue;
-				}
-				break;				//结束循环开始首发数据
+			{				
+				free(buf);
+				usleep(2000);
+				continue;
 			}
+			break;				//结束循环开始首发数据
 		}
+	}
 	
 	//首发数据
 	while(1)  
 	{
 		memset(datafrm, 0, sizeof(datafrm));    /* 对缓冲区清零 */  
 		curtime = GET_SYS_UPTIME();
-		if(curtime - lasttime > 60)
+		if(curtime - lasttime > GetCiSysInfo()->UpCommuPara.heart_beats*60)
 		{
 			lasttime = curtime;
 			buf = (unsigned char *)malloc(sizeof(unsigned char) * 50);
@@ -458,13 +453,18 @@ connect:
 				continue;
 			}
 		}
+
+		if(curtime - lasttime > 10)
+		{
+			send_event(client_fd);
+		}
 		
 		//read the login frame to get terminal address
 		usleep(100*1000);
 		len = RecvData(client_fd, datafrm, sizeof(datafrm), 2*1000);
 		if (len >= 16)
 		{
-			printf("recv data:\n");
+			printf("client recv data:\n");
 			printhexdata(datafrm, len);
 			Protocl13761ParseData((unsigned char *)datafrm, len,client_fd);
 		}
@@ -532,7 +532,7 @@ connect:
 		len = ComPort_Recv(client_fd, datafrm, sizeof(datafrm));
 		if (len >= 16)
 		{
-			printf("recv data:\n");
+			printf("rs485 recv data:\n");
 			printhexdata(datafrm, len);
 			Protocl13761ParseData((unsigned char *)datafrm, len, client_fd);
 		}
@@ -551,6 +551,14 @@ connect:
 
 		
 	} 
+}
+void *local_worker(void *arg)
+{
+	while(1)
+	{
+		tick();
+		usleep(200000);				
+	}
 }
 
 
@@ -820,37 +828,54 @@ int ComPort_Send(int fd, char *send_buf,int data_len)
      
 }  
 
-
-
 int main(int argc, char *argv[])
 {
 	int	connfd = 0;
 	int res;
-	pthread_t	CLIENT_WORKER_THREAD;		//客户端线程
-	pthread_t	SERVER_WORKER_THREAD;		//服务器线程，用于以太网连接主站
-	pthread_t	RS485_CONNE_MAST;			//485连接主站线程
+	pthread_t CLIENT_WORKER_THREAD;		//客户端线程
+	pthread_t SERVER_WORKER_THREAD;		//服务器线程，用于以太网连接主站
+	pthread_t RS485_CONNE_MAST;			//485连接主站线程
+	pthread_t WORKER_THREAD;			//
 
-
-    CircuitParamInit();	
+	
     struct sockaddr_in	cliaddr; 
 	socklen_t clilen = sizeof(cliaddr);
 
+	//加载参数
+	TermParaPowerUp(TERM3761_PARA_CONF);
+	
+	//消息队列初始化
+	sequeue_init();
+
+	//事件记录初始化
+	EventInit();
+
+	//初始化流量记录
+	load_flow_without_lock();
+
+	init_List_Timer();
 	//客户端
 	res = pthread_create(&CLIENT_WORKER_THREAD,NULL,(void *)client_worker,NULL);
 	if(res!=0)
 	{
-			printf("Create HOST_LISTEN thread error!\n");
-			exit(1);
+		printf("Create HOST_LISTEN thread error!\n");
+		exit(1);
 	}
 
 	//485
 	res = pthread_create(&RS485_CONNE_MAST,NULL,(void *)rs485_worker,NULL);
 	if(res!=0)
 	{
-			printf("Create HOST_LISTEN thread error!\n");
-			exit(1);
+		printf("Create HOST_LISTEN thread error!\n");
+		exit(1);
 	}
-
+	
+	res = pthread_create(&WORKER_THREAD,NULL,(void *)local_worker,NULL);
+	if(res!=0)
+	{
+		printf("Create WORKER thread error!\n");
+		exit(1);
+	}
 	
 	//服务器
 	HOST.FD = Server_listen(HOST.PORT);
@@ -865,23 +890,24 @@ int main(int argc, char *argv[])
 		printf("Connect connfd = %d\n", connfd);
 		if(connfd < 0)
 		{
-			printf( "Connect fail %d\n", connfd);
 			continue;
 		}
 		res = pthread_create(&SERVER_WORKER_THREAD, NULL, serrver_worker, (void *)&connfd);
 		if(res!=0)
 		{
-				printf("Create HOST_LISTEN thread error!\n");
-				exit(1);
+			printf("Create HOST_LISTEN thread error!\n");
+			exit(1);
 		}
 		else
 		{
 			printf("Coming from port %d \n",ntohs(cliaddr.sin_port));
 			printf("Coming from IP %s \n",inet_ntoa(cliaddr.sin_addr));
-		}	
+		}
+		
 	}
 	
-	close(HOST.FD);	
+	close(HOST.FD);
+	
 	getchar();
 	getchar();
 	return 0;

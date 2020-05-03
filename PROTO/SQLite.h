@@ -1,6 +1,8 @@
 #ifndef _SQLite_H_
 #define _SQLite_H_
 
+#include "Sgd_types.h"
+
 #include "sqlite3.h"
 
 #define FILENAME	"./Event.db"
@@ -15,12 +17,17 @@ int execFormatDML(sqlite3* mpDB, const char* format, ...);
 int TableIsExit(char *TableName, sqlite3* mpDB);
 int getTableIsExit(void *para, int ncolumn, char **columnvalue, char **columnname);
 
-int InsertImportanceEvent(int ERC, char *data, unsigned long long time, int report);
+int InsertImportanceEvent(u8 ERC, char *data, u32 time, int report);
 
-int InsertordinaryEvent(int ERC, char *data, unsigned long long time );
+int InsertordinaryEvent(u8 ERC, char *data, u32 time);
+
 
 int DeleteImportanceEvent(int ERC);
 int DeleteordinaryEvent(int ERC);
+
+int DelimpERC(int ERC);
+int DelordERC(int ERC);
+
 
 int GetImportanceEvent_Num();
 int GetordinaryEvent_Num();
@@ -30,7 +37,9 @@ int getordinarynum(void *para, int ncolumn, char **columnvalue, char **columnnam
 
 int GetImportanceEvent(int Pm, int Pn);
 int GetImportanceEvent_back(void *para, int ncolumn, char **columnvalue, char **columnname);
-int GetordinaryEvent(int Pm, int Pn);
+int GetordinaryEvent(u8 Pm, u8 Pn);
+
+
 int GetordinaryEvent_back(void *para, int ncolumn, char **columnvalue, char **columnname);
 
 
@@ -43,6 +52,19 @@ int GetERCEvent_back(void *para, int ncolumn, char **columnvalue, char **columnn
 int GetEventRow();
 int GetEventRowback(void *para, int ncolumn, char **columnvalue, char **columnname);
 
+int UpdateEventRow(u8 row);
+
+
+int GetEC1();
+int GetEC1back(void *para, int ncolumn, char **columnvalue, char **columnname);
+
+int GetEC2();
+int GetEC2back(void *para, int ncolumn, char **columnvalue, char **columnname);
+
+int UpdateEC1(u8 EC1);
+int UpdateEC2(u8 EC2);
+
+int UpdatePower(char *data, u32 time);
 
 
 #endif

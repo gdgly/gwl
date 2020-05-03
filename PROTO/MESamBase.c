@@ -9,6 +9,8 @@
 #include "spidev.h"
 #include "MESamBase.h"
 #include "util.h"
+#include <errno.h>
+
 int m_MFd;
 unsigned char m_MSendBuf[MESAM_SEND_BUF_MAX_LEN];
 //unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN];
@@ -21,12 +23,12 @@ int MEsamDevOpen(void)
 		close(m_MFd);
 		m_MFd = -1;
 	}
-	m_MFd = open((char *)"/dev/spidev1.3",O_RDWR);
+	m_MFd = open((char *)"/dev/spidev0.1",O_RDWR);
 	if (m_MFd < 0)
 	{
-		#ifdef MESAM_CLASS_DEBUG
+		//#ifdef MESAM_CLASS_DEBUG
 		printf("TMESAMBaseClass::MEsamDevOpen error (open dev failed.\n)");
-		#endif
+		//#endif
 		//MY_ACE_ERROR((LM_ERROR,"TMESAMBaseClass::MEsamDevOpen open dev failed!!!!\n"));
 		return -1;
 	}
@@ -38,6 +40,7 @@ int MEsamDevOpen(void)
 		return -1;
 	}
 	//MY_ACE_ERROR((LM_ERROR,"TMESAMBaseClass::MEsamDevOpen open dev success!!!!\n"));
+	printf("MEsamDevOpen open dev success!!!!\n");
 	return 0;
 };
 
@@ -364,7 +367,7 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 				else
 				{
 					//ACE_ASSERT(_bytesCount > 0);
-					assert(_bytesCount > 0);
+					//assert(_bytesCount > 0);
 					//receive left frame part
 					if (m_MRecvLen)
 					{
