@@ -132,12 +132,12 @@ int CircuitLogicAddrLoad(const char* confile)
     char ArrData[2][30];
     char *cParaInfo[] = 
     {
-        "AREA_CODE",        ArrData[0],    ":",
-        "TERMINAL_CODE",    ArrData[1],    ":",
+        "CS_F89_AREA_CODE",        ArrData[0],    ":",
+        "CS_F89_TERMINAL_CODE",    ArrData[1],    ":",
     };
     memset(&para->usModleAddr,0,sizeof(para->usModleAddr));
     memset(ArrData,0,sizeof(ArrData));
-    gr = sizeof(cParaInfo)/(sizeof(cParaInfo)*3);
+    gr = sizeof(cParaInfo)/(sizeof(cParaInfo[0])*3);
     if(GetFileDataGroup(confile,cParaInfo,gr)) return -1;
     para->usModleAddr.districtCode = atoi(ArrData[0]);
     para->usModleAddr.termAddr = atoi(ArrData[1]);

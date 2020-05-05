@@ -10,7 +10,7 @@ extern unsigned char m_MSendBuf[MESAM_SEND_BUF_MAX_LEN];
 //extern unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN];
 static long max_reply_duration;
 
-// 功能描述：获取终端ESAM信息 
+// 鍔熻兘鎻忚堪锛氳幏鍙栫粓绔疎SAM淇℃伅 
 int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 {
 	int recvDataBufPos = 0;
@@ -52,7 +52,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 		return -1;
 	}
 	printf("GetTermESAMInfo-Counter success!!!\n");
-	recvDataBuf[recvDataBufPos ++] = _ChipStatus;//芯片状�?
+	recvDataBuf[recvDataBufPos ++] = _ChipStatus;//鑺墖鐘舵??
 	unsigned char keySerFramer[] = {0x80,0x0E,0x00,0x06,0x00,0x00,};//
 	_rs = MESamComRecv(keySerFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)
@@ -60,7 +60,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 		printf("GetTermESAMInfo-KeyVersion failed!!!\n");
 		return -1;
 	}
-	//作数据的反序处理
+	//浣滄暟鎹殑鍙嶅簭澶勭悊
 	int pos = 0;
 	ByteReverse(recvDataBuf, 8, tempDataBuf);
 	pos += 8;
@@ -71,7 +71,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 	ByteReverse(recvDataBuf+pos, 1, tempDataBuf+pos);
 	pos++;
 	ByteReverse(recvDataBuf+pos, 8, tempDataBuf+pos);
-	//将反序后的数据拷回到原来的buf
+	//灏嗗弽搴忓悗鐨勬暟鎹嫹鍥炲埌鍘熸潵鐨刡uf
 	memcpy(recvDataBuf, tempDataBuf, recvDataBufPos);
 	//delete tempDataBuf;
 	free(tempDataBuf);
@@ -106,7 +106,7 @@ int TermCertificateUpdateRequest(unsigned char* recvDataBuf, unsigned char certi
 		printf("TermCertificateUpdateRequest cer fail!!!\n");
 		return -1;
 	}
-	//数据做反序处�?
+	//鏁版嵁鍋氬弽搴忓鐞?
 	int pos = 0;
 	//unsigned char *tmpDataBuf = new unsigned char[recvDataBufPos];
 	unsigned char *tmpDataBuf = (unsigned char *)malloc(recvDataBufPos * sizeof(unsigned char));
@@ -114,7 +114,7 @@ int TermCertificateUpdateRequest(unsigned char* recvDataBuf, unsigned char certi
 	pos += 16;
 	ByteReverse(recvDataBuf+pos, 64, tmpDataBuf+pos);
 	pos += 64;
-	//将反序后的数据拷回到原来的buf
+	//灏嗗弽搴忓悗鐨勬暟鎹嫹鍥炲埌鍘熸潵鐨刡uf
 	memcpy(recvDataBuf, tmpDataBuf, recvDataBufPos);
 	//delete tmpDataBuf;
 	free(tmpDataBuf);
@@ -128,7 +128,7 @@ int TermCertificateUpdateRequest(unsigned char* recvDataBuf, unsigned char certi
 int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _RecvDataBuf,int *_RecvDataBufPos, unsigned int recvBufSize)
 {
 	int _rs = -1, _i=0, _j=0;
-	int m_MRecvLen = 0;//帧长�?
+	int m_MRecvLen = 0;//甯ч暱搴?
 	int timeout = -1;
 	unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN];
 	
@@ -160,7 +160,7 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 				}
 				break;
 			}
-			usleep(100);//避免收到上次命令的应�?
+			usleep(100);//閬垮厤鏀跺埌涓婃鍛戒护鐨勫簲绛?
 		}
 
 		//_MSendDt = time(NULL);
@@ -239,7 +239,7 @@ int MESamComRecv(unsigned char* _MSendFrame,int _MSendFramepos,unsigned char* _R
 
 }
 
-//字节倒项,例如12 34 56->56 34 12
+//瀛楄妭鍊掗」,渚嬪12 34 56->56 34 12
 int ByteReverse(unsigned char *srcData, unsigned int srcSize, unsigned char *destData)
 {
 	if (NULL == srcData && NULL == destData)

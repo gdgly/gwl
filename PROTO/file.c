@@ -416,14 +416,13 @@ int GetFileDataGroup(const char* confile,char *para[],int group)
     if(!confile||!para||!group) return 0;
 
     int i,ret = -1;
-    char *pData;
     
     for(i=0;i<group;i++)
     {
         if((para[i*3]==NULL)||(para[1+i*3]==NULL)||(para[2+i*3]==NULL)) break;
-        pData = para[2+i*3];
-        ret = getConfPara(confile,para[i*3],para[1+i*3],100,*pData);
+        ret = getConfPara(confile,para[i*3],para[1+i*3],100,*para[2+i*3]);
         if(ret) break;
+		printf("[GetPara]:\n[name]:%s\n[data]:%s\n\n\n",para[i*3],para[1+i*3]);
     }
     if(i>=group) ret = 0;
     return ret;

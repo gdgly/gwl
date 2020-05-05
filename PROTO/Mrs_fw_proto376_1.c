@@ -13,6 +13,8 @@
 #include "local_fun.h"
 #include "ListTimer.h"
 #include "para.h"
+#include "GetTerminalESAMData.h"
+#include "MESamComMgr.h"
 #include <time.h>
 
 
@@ -1519,6 +1521,8 @@ static uint8_t GDW376_1_AFN0AH_89H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
+	printf("terminal addr:\n");
+	printhexdata(&pPara->usModleAddr,sizeof(pPara->usModleAddr));
     memcpy(pAckBuf,(uint8_t*)&pPara->usModleAddr,sizeof(pPara->usModleAddr));
     *ack_pos += sizeof(pPara->usModleAddr);
     return 1;
@@ -1896,16 +1900,44 @@ static uint8_t GDW376_1_AFN06H_100H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckB
 	if(!pAckBuf||!ack_pos) return 0;
 	
 	ret = MainStaGetTermCertiInfo(pBuf,8,pAckBuf,ack_pos);
-	return ret;
+	return (ret? 0:1);
 
 }
 static uint8_t GDW376_1_AFN06H_101H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
 {
-
+	int ret = 0;
+	
+	if(!pAckBuf||!ack_pos) return 0;
+	
+	ret = GetTerminalSecurityAuthenInfo(pBuf,8,pAckBuf,60,ack_pos);
+	return (ret? 0:1);
 }
 static uint8_t GDW376_1_AFN06H_102H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
 {
+	int ret = 0;
+	int fd=-1;
+	int n_sefile=0;
+	unsigned char EsamId[8];
 
+
+	fd = OpenComPort(fd ,"/dev/ttyS9");
+	if(-1==fd) 
+	{
+		printf("[06F102]open uart failed\n");
+		return -1;
+	}
+	n_sefile = 36*pBuf[0];
+	if(0==TerminalCtAuthenticate(fd,EsamId))
+	{
+		ret = TAModuleKeyUpdate(fd,pBuf[0],&pBuf[1],n_sefile,pBuf+n_sefile+1,EsamId);
+		
+	}
+	else
+	{
+		printf("authenticate failled\n");
+		ret = -1;
+	}
+	return (ret? 0:1);
 }
 
 static uint8_t AFN_06H(uint8_t *pBuf, uint16_t len, int fd)
