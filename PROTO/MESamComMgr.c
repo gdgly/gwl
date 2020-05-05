@@ -26,7 +26,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 		return -1;
 	}
 	printf("GetTermESAMInfo-ChipSerial success!!!\n");
-	unsigned char ChipStaSerFramer[] = {0x80,0x0E,0x00,0x05,0x00,0x00,};//芯片状�?
+	unsigned char ChipStaSerFramer[] = {0x80,0x0E,0x00,0x05,0x00,0x00,};//
 	_rs = MESamComRecv(ChipStaSerFramer,6,&_ChipStatus,&_pos,sizeof(_ChipStatus));
 	printf("GetTermESAMInfo-ChipState %d!!!\n", _ChipStatus);
 	if (_rs != 0)
@@ -35,7 +35,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 		return -1;
 	}
 	printf("GetTermESAMInfo-ChipState success!!!\n");
-	unsigned char CerSerFramer[] = {0x80,0x32,0x00,0x02,0x00,0x00,};//证书序列�?
+	unsigned char CerSerFramer[] = {0x80,0x32,0x00,0x02,0x00,0x00,};//
 	CerSerFramer[2] = _ChipStatus;
 	_rs = MESamComRecv(CerSerFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)
@@ -44,7 +44,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 		return -1;
 	}
 	printf("GetTermESAMInfo-CertificationSerial success!!!\n");
-	unsigned char CountFramer[] = {0x80,0x0E,0x00,0x03,0x00,0x00,};//计数�?
+	unsigned char CountFramer[] = {0x80,0x0E,0x00,0x03,0x00,0x00,};//
 	_rs = MESamComRecv(CountFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)
 	{
@@ -53,7 +53,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 	}
 	printf("GetTermESAMInfo-Counter success!!!\n");
 	recvDataBuf[recvDataBufPos ++] = _ChipStatus;//芯片状�?
-	unsigned char keySerFramer[] = {0x80,0x0E,0x00,0x06,0x00,0x00,};//密钥版本
+	unsigned char keySerFramer[] = {0x80,0x0E,0x00,0x06,0x00,0x00,};//
 	_rs = MESamComRecv(keySerFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)
 	{
@@ -82,7 +82,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 	return recvDataBufPos;
 }
 
-// 功能描述：终端证书更新请�?
+
 int TermCertificateUpdateRequest(unsigned char* recvDataBuf, unsigned char certiType, unsigned int recvBufSize)
 {
 	//ACE_MT(ACE_GUARD_RETURN(ACE_Recursive_Thread_Mutex, autolock,lock_,-1));
