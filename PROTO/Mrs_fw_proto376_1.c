@@ -13,8 +13,8 @@
 #include "local_fun.h"
 #include "ListTimer.h"
 #include "para.h"
-#include "GetTerminalESAMData.h"
 #include "MESamComMgr.h"
+#include "GetTerminalESAMData.h"
 #include <time.h>
 
 
@@ -628,6 +628,15 @@ static uint8_t GDW376_1_AFN01H_03H(uint8_t* pBuf, uint16_t* len)
 {
 	int ret = 0;
 	ret = TermParaDefault();
+
+	//参数初始化及全体数据区初始化事件
+	if(ret != 0)
+	{
+		stru_sjjl_ERC1 ev1 = {0};
+		ev1.CSH = 1;
+		CreateEvent1(ev1);
+	}
+			
 	return ret? 0:1;
 }
 //goback factory without mainstation para
@@ -987,6 +996,11 @@ static uint8_t GDW376_1_AFN04H_09H(uint8_t* pBuf, uint16_t* len)
     EventParaLoad(TERM3761_PARA_CONF);
 	return (ret==0)? 1:0;     
 }
+static uint8_t GDW376_1_AFN04H_10H(uint8_t* pBuf, uint16_t* len)
+{
+	
+}
+
 static uint8_t GDW376_1_AFN04H_16H(uint8_t* pBuf, uint16_t* len)
 {
     if (!pBuf||!len) return 0;
@@ -1344,8 +1358,28 @@ static uint8_t GDW376_1_AFN09H_01H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
 	{
 		return 0;
 	}
+
+	u8 head[4] = {0};
+
+	stDT dt;
+	setFn(0x01, &dt);
+
+	stDA da;
+	setPn(0, &da);
+
+	head[0] = da.DA1;
+	head[1] = da.DA2;
+	head[2] = dt.DT1;
+	head[3] = dt.DT2;
+
+	memcpy(pAckBuf, head, 4);
+
+	stTermVerInfo termVerInfo;
+	GetTermVersionInfo(&termVerInfo);
+
+	memcpy(&pAckBuf[4], &termVerInfo, sizeof(termVerInfo));
 	
-	//*ack_pos += sizeof();
+	*ack_pos += sizeof(termVerInfo) + 4;
 	return 1;
 }
 
@@ -1357,8 +1391,25 @@ static uint8_t GDW376_1_AFN09H_09H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
 	{
 		return 0;
 	}
+	u8 head[4];
 	
-	//*ack_pos += sizeof(stMainStationIPPort);
+	stDT dt;
+	setFn(9, &dt);
+
+	stDA da;
+	setPn(0, &da);
+
+	head[0] = da.DA1;
+	head[1] = da.DA2;
+	head[2] = dt.DT1;
+	head[3] = dt.DT2;
+
+	memcpy(pAckBuf, head, 4);
+	
+	RemoteVerInfo remoteModalVerInfo;
+	GetRemoteComModalVerInfo(&remoteModalVerInfo);
+	memcpy(&pAckBuf[4], &remoteModalVerInfo, sizeof(remoteModalVerInfo));
+	*ack_pos += sizeof(remoteModalVerInfo) + 4;
 	return 1;
 }
 
@@ -1464,7 +1515,7 @@ static uint8_t GDW376_1_AFN0AH_01H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->UpCommuPara,sizeof(pPara->UpCommuPara));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->UpCommuPara,sizeof(pPara->UpCommuPara));
     *ack_pos += sizeof(pPara->UpCommuPara);
     return 1;
 }
@@ -1475,7 +1526,7 @@ static uint8_t GDW376_1_AFN0AH_03H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->MainStation,sizeof(pPara->MainStation));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->MainStation,sizeof(pPara->MainStation));
     *ack_pos += sizeof(pPara->MainStation);
     return 1;
 
@@ -1487,7 +1538,7 @@ static uint8_t GDW376_1_AFN0AH_07H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->CiIpAndPort,sizeof(pPara->CiIpAndPort));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->CiIpAndPort,sizeof(pPara->CiIpAndPort));
     *ack_pos += sizeof(pPara->CiIpAndPort);
     return 1;
 
@@ -1500,7 +1551,7 @@ static uint8_t GDW376_1_AFN0AH_09H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->EvtRecoSet,sizeof(pPara->EvtRecoSet));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->EvtRecoSet,sizeof(pPara->EvtRecoSet));
     *ack_pos += sizeof(pPara->EvtRecoSet);
     return 1;
 
@@ -1510,7 +1561,7 @@ static uint8_t GDW376_1_AFN0AH_16H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->VirtualNet,sizeof(pPara->VirtualNet));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->VirtualNet,sizeof(pPara->VirtualNet));
     *ack_pos += sizeof(pPara->VirtualNet);
     return 1;
 }
@@ -1521,9 +1572,7 @@ static uint8_t GDW376_1_AFN0AH_89H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-	printf("terminal addr:\n");
-	printhexdata(&pPara->usModleAddr,sizeof(pPara->usModleAddr));
-    memcpy(pAckBuf,(uint8_t*)&pPara->usModleAddr,sizeof(pPara->usModleAddr));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->usModleAddr,sizeof(pPara->usModleAddr));
     *ack_pos += sizeof(pPara->usModleAddr);
     return 1;
 
@@ -1536,7 +1585,7 @@ static uint8_t GDW376_1_AFN0AH_91H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->Location,sizeof(pPara->Location));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->Location,sizeof(pPara->Location));
     *ack_pos += sizeof(pPara->Location);
     return 1;
 
@@ -1548,7 +1597,7 @@ static uint8_t GDW376_1_AFN0AH_153H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckB
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->CurLoopEnPara,sizeof(pPara->CurLoopEnPara));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->CurLoopEnPara,sizeof(pPara->CurLoopEnPara));
     *ack_pos += sizeof(pPara->CurLoopEnPara);
     return 1;
 
@@ -1560,7 +1609,7 @@ static uint8_t GDW376_1_AFN0AH_154H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckB
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
     
     sTermSysInfo *pPara = GetCiSysInfo();
-    memcpy(pAckBuf,(uint8_t*)&pPara->TARatePara,sizeof(pPara->TARatePara));
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->TARatePara,sizeof(pPara->TARatePara));
     *ack_pos += sizeof(pPara->TARatePara);
     return 1;
 
@@ -1899,7 +1948,7 @@ static uint8_t GDW376_1_AFN06H_100H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckB
 	
 	if(!pAckBuf||!ack_pos) return 0;
 	
-	ret = MainStaGetTermCertiInfo(pBuf,8,pAckBuf,ack_pos);
+//	ret = MainStaGetTermCertiInfo(pBuf,8,pAckBuf,ack_pos);
 	return (ret? 0:1);
 
 }
@@ -1909,34 +1958,34 @@ static uint8_t GDW376_1_AFN06H_101H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckB
 	
 	if(!pAckBuf||!ack_pos) return 0;
 	
-	ret = GetTerminalSecurityAuthenInfo(pBuf,8,pAckBuf,60,ack_pos);
+//	ret = GetTerminalSecurityAuthenInfo(pBuf,8,pAckBuf,60,ack_pos);
 	return (ret? 0:1);
 }
 static uint8_t GDW376_1_AFN06H_102H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
 {
 	int ret = 0;
-	int fd=-1;
-	int n_sefile=0;
-	unsigned char EsamId[8];
-
-
-	fd = OpenComPort(fd ,"/dev/ttyS9");
-	if(-1==fd) 
-	{
-		printf("[06F102]open uart failed\n");
-		return -1;
-	}
-	n_sefile = 36*pBuf[0];
-	if(0==TerminalCtAuthenticate(fd,EsamId))
-	{
-		ret = TAModuleKeyUpdate(fd,pBuf[0],&pBuf[1],n_sefile,pBuf+n_sefile+1,EsamId);
-		
-	}
-	else
-	{
-		printf("authenticate failled\n");
-		ret = -1;
-	}
+//	int fd=-1;
+//	int n_sefile=0;
+//	unsigned char EsamId[8];
+//
+//
+//	fd = OpenTaUartPort(fd ,"/dev/ttyS9");
+//	if(-1==fd) 
+//	{
+//		printf("[06F102]open uart failed\n");
+//		return -1;
+//	}
+//	n_sefile = 36*pBuf[0];
+//	if(0==TerminalCtAuthenticate(fd))
+//	{
+//		ret = TAModuleKeyUpdate(fd,pBuf[0],&pBuf[1],n_sefile,pBuf+n_sefile+1,4);
+//		
+//	}
+//	else
+//	{
+//		printf("authenticate failled\n");
+//		ret = -1;
+//	}
 	return (ret? 0:1);
 }
 

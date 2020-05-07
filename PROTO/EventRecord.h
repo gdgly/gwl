@@ -12,7 +12,7 @@
 #define IMPORTANTFILEEC 	"importanceEC.dat"
 #define EVENTRECORDSTATUS 	"EventRecordStatus.dat" 	
 
-#define flow_path_		"./Comm_flow.conf"
+#define flow_path_	 "/mnt/conf/Comm_flow.conf"
 
 
 #define EveMax 				80			//事件存储做大的数据

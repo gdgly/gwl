@@ -760,12 +760,22 @@ int UpdateEventRow(u8 row)
    	char sql[128] = {0};    
 	char *errmsg; 
     sqlite3* mpDB = NULL;  
-    
+
+	int back_row = 0;
+	
     mpDB = DBopen(FILENAME);
     if(mpDB == NULL)
         return -1;
-	sprintf(sql, "update ImportanceEvent set Report = 0 limit %d,%d;", row, row+1 );			//有的可以执行，有的不行
+	
+
+	sprintf(sql, "select rowid from ImportanceEvent limit %d,%d;", 0, row+1);	//获取行号
+		
+	rsl = sqlite3_exec(mpDB, sql, UpdateEventRow_back, (void *)&back_row, &errmsg); 
+	memset(sql, 0, sizeof(sql));
+	printf("back_row = %d\n\n",back_row);
+	sprintf(sql, "update ImportanceEvent set Report = 0 where rowid = %d;", back_row);			//有的可以执行，有的不行
 	rsl = sqlite3_exec(mpDB, sql, NULL, NULL, &errmsg); 
+	
 	DBclose(mpDB);
 	if(rsl != SQLITE_OK)	
 	{		
@@ -774,6 +784,20 @@ int UpdateEventRow(u8 row)
 	} 
 	return 0;
 }
+
+
+int UpdateEventRow_back(void *para, int ncolumn, char **columnvalue, char **columnname)
+{
+	int i;	
+	for(i = 0;i < ncolumn; i++)	
+	{		
+		//printf("col_name:%s----> clo_value:%s\n",columnname[i],columnvalue[i]);	
+	}	
+
+	*(int *)para = atol(columnvalue[0]);
+	return 0;
+}
+
 
 
 

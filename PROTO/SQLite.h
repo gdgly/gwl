@@ -5,7 +5,7 @@
 
 #include "sqlite3.h"
 
-#define FILENAME	"./Event.db"
+#define FILENAME "/mnt/conf/Event.db"
 
 sqlite3* DBopen(const char* szFile);
 
@@ -53,6 +53,7 @@ int GetEventRow();
 int GetEventRowback(void *para, int ncolumn, char **columnvalue, char **columnname);
 
 int UpdateEventRow(u8 row);
+int UpdateEventRow_back(void *para, int ncolumn, char **columnvalue, char **columnname);
 
 
 int GetEC1();

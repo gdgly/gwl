@@ -1194,7 +1194,7 @@ typedef struct
 
 /***********AFN09终端信息参数结构体****************************/
 //F1终端版本信息
-typedef struct stTermVerInfo
+typedef struct
 {
 	u8 factry_code[4];				//厂商代码
 	u8 term_number[8];				//设备编号
@@ -1208,7 +1208,7 @@ typedef struct stTermVerInfo
 
 
 //F9远程通信模块版本信息
-typedef struct RemoteVerInfo
+typedef struct
 {
 	u8 factry_code[4];				//厂商代码
 	u8 module_type[8];				//模具型号

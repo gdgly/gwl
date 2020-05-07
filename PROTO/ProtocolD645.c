@@ -381,7 +381,7 @@ int mrsFind645Frame(unsigned char* in_buf, int in_len,
             {
                 buf++;
                 in_len--;
-				printf("in_len >= frame_len is wrong\n");
+				printf("in_len < frame_len is wrong\n");
                 continue;
             }
 

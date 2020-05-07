@@ -301,6 +301,10 @@ int com_645_2007_SendFrame(p645_tasktype tasktype645,void *taskpara)
 		Protocol_645_Pack_1(data, data_len);	
 		BackStage_645_2007(data, data_len, 0, 0);
 	}
+	else
+	{
+		return -1;
+	}
 	CLOSE_645_2007_TERM(&com_645_2007_HOST);
 	return 0;
 }
@@ -324,7 +328,7 @@ void BackStage_645_2007(u8 *data,int datalen,int isfirst,int islast)
    SJGS_09 *zwggl;  			 //,*ABCxwggl; 无功功率
    SJGS_05 *zglys;   			 //,*ABCxglys; 功率因数
    int value,Inzs=0,Inxs=0;
-   int i,Inerr=0;;
+   int i;
    
    memcpy(zyggl_buf, &data[4], 12);		//有功功率
    memcpy(zwggl_buf, &data[16], 12);	//无功功率
@@ -332,6 +336,7 @@ void BackStage_645_2007(u8 *data,int datalen,int isfirst,int islast)
    memcpy(dqdl_buf, &data[34], 9);		//电流
    memcpy(&dqdl_buf[9], &data[63], 3);	//零线电流
    memcpy(zglys_buf, &data[43], 8);		//功率因数
+   
   //计算当前电压电流
   //电压
   for(i=0;i<3;i++)
@@ -339,7 +344,7 @@ void BackStage_645_2007(u8 *data,int datalen,int isfirst,int islast)
 	  dqdy = (SJGS_07 *)&dqdy_buf[i*2];
 	  if(dqdy->SFW>9 || dqdy->GW>9 || dqdy->SW>9 || dqdy->BW>9)
 	  {
-		  //GUI_DispStringAt("eee.e",37-4,33+16*i);
+		  printf("get AC date error\n");
 	  }
 	  else
 	  {
@@ -347,7 +352,7 @@ void BackStage_645_2007(u8 *data,int datalen,int isfirst,int islast)
 		  ACdate.U[i] = value;
 		  value = dqdy->SFW;
 		  ACdate.U[i] += ((float)value)/10;
-
+		  printf("ACdate.U[%d] = %f\n",i,ACdate.U[i]);
 	  }
   }
   
@@ -357,15 +362,15 @@ void BackStage_645_2007(u8 *data,int datalen,int isfirst,int islast)
 	 dqdl = (SJGS_25 *)&dqdl_buf[i*3];
 	 if(dqdl->QFW>9 || dqdl->BFW>9 || dqdl->SFW>9 || dqdl->GW>9 || dqdl->SW>9 || dqdl->BW>9)
 	 {
-		// GUI_DispStringAt("eee.eee",103-4,33+16*i);
-		 Inerr = 1;
+		 printf("get AC date error\n");
 	 }
 	 else
 	{
 		 value = dqdl->BW*100+dqdl->SW*10+dqdl->GW; 
 		 ACdate.I[i] = value;
 		 value = dqdl->SFW*100+dqdl->BFW*10+dqdl->QFW; 
-		ACdate.I[i] += ((float)value)/1000;
+		 ACdate.I[i] += ((float)value)/1000;
+		 printf("ACdate.I[%d] = %f\n",i,ACdate.I[i]);
 	 }
   }
 }

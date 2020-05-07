@@ -1,17 +1,19 @@
 #ifndef LIST_TIMER_H
 #define LIST_TIMER_H
 
+#include "list.h"
+
+
+#define MAX_TIMER_NUM				600
+
 typedef struct util_time
 {
-    struct  util_time * prev; // 双链表的前驱
-    struct util_time * next; //双链表后驱
-    //Client data point
-    void * cdata;         //其他数据
+	sList Node;
+    void * cdata;         //
     //timeout value
-    time_t out_time;       //定时时间
-    int persist;      //是否是坚持定时
-    //if timeout callback
-    void (*timeout_callback)(void * data); //定时回调函数
+    time_t out_time;       //
+    int persist;      //
+    void (*timeout_callback)(void * data); //
 }UTIL_TIME;
 
 //Timer list
@@ -35,11 +37,10 @@ struct TimerOP
 
 
 //timer list operator, all function only handle list and free timer, not free clientdata
-LIST_TIMER *GetListTimer(void);
+//LIST_TIMER *GetListTimer(void);
 int add_timer(int timeout,int period,void (*timeout_callback)(void * data),void *data,UTIL_TIME **out_ut);
 int del_timer(UTIL_TIME **ut);
-int adjust_timer(UTIL_TIME * ut, time_t _time);
-void tick(void);
+void TimerTick(void);
 void init_List_Timer(void);
 void destroy_list_Timer(void);
 #endif

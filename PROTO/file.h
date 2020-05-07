@@ -9,14 +9,14 @@
 #define MAINSTATION_CONN_FILE 		"/var/run/mainstation_conn_conc.log"
 #define CONNECTMAINSTATION_LOG_PATH "/mnt/mainstation_connect.log"
 //#define APN_CONF_FILE_PATH "/mnt/conf/apn_para.conf"
-#define REMOTE_MODULE_CONF_PATH 	"/mnt/data/concentrator/remote_com_modal_version.conf"
-#define REMOTE_PARA_FILE_PATH 		"/mnt/conf/remote_para.conf"
+#define REMOTE_MODULE_CONF_PATH	 "/mnt/conf/remote_com_modal_version.conf"
+#define REMOTE_PARA_FILE_PATH	 "/mnt/conf/remote_para.conf"
 //设置电流回路使能参数
-#define CURRENT_CIRCUIT_ENABLE_PATH    "./config/current_circuit_param.conf"
-#define TERM_SOFT_VERSION				"./terminal_version.conf"
-#define TERM3761_PARA_CONF			"./conf/term3761.conf"
-#define TERM3761_PARA_CONF_INIT		"./conf/term3761_init.conf"
-#define TERM_IP_CONF_FILE			"/etc/network/interfaces"
+#define CURRENT_CIRCUIT_ENABLE_PATH 	 "/mnt/conf/current_circuit_param.conf"
+#define TERM_SOFT_VERSION	 			 "/mnt/conf/terminal_version.conf"
+#define TERM3761_PARA_CONF	 			 "/mnt/conf/term3761.conf"
+#define TERM3761_PARA_CONF_INIT	 		 "/mnt/conf/term3761_init.conf"
+#define TERM_IP_CONF_FILE				 "/etc/network/interfaces"
 
 
 int writefile(char *filename,char *buf,int len, char* mode);

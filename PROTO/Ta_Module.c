@@ -1,121 +1,51 @@
-#include "Ta_Module.h"
+#include <stdlib.h> 
+#include <stdio.h> 
+#include <errno.h> 
+#include <string.h> 
+#include <sys/types.h> 
 #include "Sgd_types.h"
+#include "GetTerminalESAMData.h"
+#include "ListTimer.h"
+#include "Ta_Module.h"
 
 
 
 
+#define GET_TA_STATUS_CNT			3//获取状态失败重发次数
+
+
+int fd_ta=-1;
+sFormat_TA_Status TaStatus;
 
 
 
 
+static void TaModuleCallBack(void * data)
+{		
+	int i;
 
-
-
-
-/***************************************
-*输入:buf, len
-*输出:无
-*返回:sum数据buf的累加和
-*描述:计算累加和
-*作者:
-***************************************/
-u8 SgdGetSum( u8 *buf, u8 len )
-{
-  u16 sum = 0x00;
-  u16 i;
-  for( i = 0; i < len; i ++)
-  {
-    sum += *( buf + i );
-  }
-  return (sum & 0xFF);
+	memset((u8 *)&TaStatus,0,sizeof(TaStatus));
+	for(i=0;i<GET_TA_STATUS_CNT;i++)
+	{
+		if(0==GetCTModuleStatus((u8 *)&TaStatus.FormatTag,&TaStatus.Phase_A_ststus,TaStatus.Mac))
+		{
+			printf("[ta_status]:\n");
+			printhexdata(&TaStatus, sizeof(TaStatus));
+			break;
+		}
+		printf("get TA status failled,restart=%d",i);
+	}
 }
 
 
-
-/***************************************
-*输入:addr, msg, msg_len
-*输出:addr -响应的地址
-*返回:pos -68起始位置
-*描述:检查输入的数据是否为正确的645回应帧
-*作者:
-***************************************/
-s8  SgdCheck645UpLineFrame( u8 *addr, u8 *buf,u8 len )
-{
-  s8 i,pos =-1;  
-  
-  for( i = 0; i < len; i++ )
-  {
-    sProHead_645_ex* p = (u8 *)&buf[i];
-    
-    if(p->startCode1 != START_CODE1 ) continue;
-    s8 ret = i;
-    if(p->startCode2 != START_CODE2 ) continue;    
-    if(UP_DIRECTION != p->sCtrCode.direction) continue;
-
-    sProEnd_645 sp = (&p->sCtrCode + p->dataLen);
-    if( sp->sumCrc != SgdGetSum( p->dataArea, p->dataLen ) ) continue;
-    if( sp->endCode != END_CODE ) continue;
-    memcpy( addr, p->addr, 6 );
-    pos = ret;
-    break;
-  }
-
-  return pos;
+void TaModuleInit(void)
+{	
+	add_timer(2, 10, TaModuleCallBack, NULL, NULL);
 }
 
-/***************************************
-*输入:buf,addr, DI, data,datalen
-*输出:无
-*返回:pos -构造的帧的长度
-*描述:构造645下行帧
-*作者:
-***************************************/
-u8 SgdBulid645DownLineFrame(  u8 *buf,u8 *addr,u8 *DI,u8 *data ,u8 datalen)
+sFormat_TA_Status GetTaStatus(void)
 {
-    u8 pos = 0;    
-    sProHead_645_ex* p = &buf;
-
-    p->startCode1 = START_CODE1;
-    memcpy(p->addr, addr,6);    
-    p->startCode2 = START_CODE2;
-    p->sCtrCode.direction = DOWN_DIRECTION;
-    p->sCtrCode.functionCode = CONTROL_CODE_645_EX; 
-    
-    memcpy(p->dataArea.DI,DI, 4);
-    memset(p->dataArea.opCode,0, 4);
-    memcpy(p->dataArea.data,data, datalen);
-
-    p->dataLen = sizeof(sDataArea_645) +datalen;
-    pos += sizeof(sProHead_645_ex);
-    pos += p->dataLen;
-
-    ProEnd_645 sp = &buf[pos];
-    sp->sumCrc = SgdGetSum( p->dataArea, p->dataLen );
-    sp->endCode = END_CODE;
-    pos += sizeof(sProEnd_645);
-
-    return pos;
-}
-
-//获取 TA 专用模块状态
-u8 SgdGetTAstatus()
-{
-
-
+	return TaStatus;
 }
 
 
-
-
-
-
-
-
-
-u8 SgdTimetoGetTADataProc()
-{
-
-    
-
-
-}

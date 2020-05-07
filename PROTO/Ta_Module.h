@@ -1,48 +1,14 @@
 #ifndef _TA_MODULE_H_
 #define _TA_MODULE_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#pragma once
-
-#ifndef  __GNUC__
-#pragma pack(push,1)
-#define __attribute__(x)
-#endif
-
-#define START_CODE1 0x68
-#define START_CODE2 START_CODE1
-#define END_CODE    0x16
-#define CONTROL_CODE_645_EX 0x03
 
 
+#define MAC_SIZE 					4
 
-//645Ğ­Òé--Êı¾İÓò±êÊ¶
-const uint8_t TAG_FILE_TRAMSMIT[] = {0x0F, 0x00, 0x00, 0x01};  		//ÎÄ¼ş´«ÊäÖ¸Áî          
-const uint8_t TAG_PROGRAM_SWITCH[] = {0x0F, 0x00, 0x00, 0x02};  		//³ÌĞòÇĞ»»            
-const uint8_t TAG_ID_AUTHEN_FIRST[] = {0x04, 0x00, 0x0F, 0x40}; 	 	//Éí·İÈÏÖ¤µÚÒ»Ö¡ÏÂĞĞ  
-const uint8_t TAG_ID_AUTHEN_SECOND[] = {0x04, 0x00, 0x0F, 0x41}; 	 	//Éí·İÈÏÖ¤µÚ¶şÖ¡ÏÂĞĞ  
-const uint8_t TAG_GET_SECURITY_INFO[] = {0x04, 0x00, 0x0F, 0x42}; 	//»ñÈ¡TA×¨ÓÃÄ£¿é°²È«ĞÅ
-const uint8_t TAG_KEY_UPDATE[] = {0x04, 0x00, 0x0F, 0x43};  			//ÃÜÔ¿¸üĞÂ              
-const uint8_t TAG_GET_BAUDRATE[] = {0x04, 0x00, 0x0F, 0x44};  		//»ñÈ¡²¨ÌØÂÊÌØÕ÷×ÖÏÂĞĞÖ¡
-const uint8_t TAG_SET_BAUDRATE[] = {0x04, 0x00, 0x0F, 0x45};  		//ÉèÖÃ²¨ÌØÂÊÌØÕ÷×ÖÏÂĞĞÖ¡
-const uint8_t TAG_GET_TA_TRANSFORMER[] = {0x04, 0x00, 0x0F, 0x46};  	//»ñÈ¡TA±ä±È²ÎÊıÏÂĞĞ
-const uint8_t TAG_SET_TA_TRANSFORMER[] = {0x04, 0x00, 0x0F, 0x47};  	//ÉèÖÃTA±ä±È²ÎÊıÏÂĞĞ
-const uint8_t TAG_GET_TA_STATUS[] = {0x07, 0x00, 0x00, 0x00};  		//»ñÈ¡TA×¨ÓÃÄ£¿é×´Ì¬ÏÂĞĞ
-const uint8_t TAG_GET_TA_WORKING[] = {0x07, 0x00, 0x00, 0x01};  		//»ñÈ¡TA×¨ÓÃÄ£¿é¹¤¿öĞÅ
-const uint8_t TAG_GET_REAL_DATA[] = {0x07, 0x00, 0x00, 0x03};  		//»ñÈ¡TA×¨ÓÃÄ£¿éÊµÊ±²âÁ¿
-const uint8_t TAG_GET_GUIDE_PARAM[] = {0x07, 0x00, 0x00, 0x04};  		//»ñÈ¡TA×¨ÓÃÄ£¿éµ÷½Ì²Î
-
-#define MAC_SIZE 4
-
-
-enum  DIRECTION
-{
-    DOWN_DIRECTION = 0,
-    UP_DIRECTION = 1
-};
+#define CIRCUIT_NORMAL				0//æ­£å¸¸çŠ¶æ€
+#define CIRCUIT_SHORTCUT			1//çŸ­è·¯
+#define CIRCUIT_BREAK				2//å¼€è·¯
+#define CIRCUIT_SEC_SEPARATE		4//äºŒæ¬¡åˆ†æµ
 
 
 typedef struct TAG_FormatCode
@@ -53,8 +19,6 @@ typedef struct TAG_FormatCode
     u8  Reserve:5;
 }__attribute__((packed))sTAG_FormatCode;
 
-
-//ÇÔµçÇé¿ö¶¨Òå£º 00H£¬ CT ´¦ÔÚÕı³£Ä£Ê½£» 01H£¬ CT ¶ÌÂ·£» 02H£¬ CT ¿ªÂ·
 typedef struct Format_TA_Status
 {
     sTAG_FormatCode FormatTag;
@@ -65,117 +29,8 @@ typedef struct Format_TA_Status
 }__attribute__((packed))sFormat_TA_Status;
 
 
-typedef struct TAG_TA_Frequence
-{//XXX.XXX kHz
-    u8  Freq_A_Value[3];
-    u8  Freq_B_Value[3];
-    u8  Freq_C_Value[3];
-}__attribute__((packed))sTAG_TA_Frequence;
+sFormat_TA_Status GetTaStatus(void);
+void TaModuleInit(void);
 
-
-typedef struct TAG_TA_Currents
-{//XXX.XXX A 
-    u8  Currents_A[3];
-    u8  Currents_B[3];
-    u8  Currents_C[3];
-}__attribute__((packed))sTAG_TA_Currents;
-
-
-typedef struct TAG_TA_Misc
-{
-    u8  Impedance_Mode[4];//XXXXXX.XX ¦¸
-    u8  Impedance_Angle[2];//XXX.X ¡ã
-    u8  Impedance_Freq[2];//XXX.X  kHz
-}__attribute__((packed))sTAG_TA_Misc;
-
-
-typedef struct Format_TA_Real_Data
-{
-    sTAG_FormatCode FormatTag;
-    u8  Phase_A_ststus;
-    u8  Phase_B_ststus;
-    u8  Phase_C_ststus;
-    sTAG_TA_Frequence FreqInfo_Max;
-    sTAG_TA_Frequence FreqInfo_Min;
-    sTAG_TA_Currents CurrentsInfo;
-    u8 Temperature[2];//XXX.X ¡æ
-    sTAG_TA_Misc Phase_A_First;
-    sTAG_TA_Misc Phase_B_First;
-    sTAG_TA_Misc Phase_C_First;
-    sTAG_TA_Misc Phase_A_Second;
-    sTAG_TA_Misc Phase_B_Second;
-    sTAG_TA_Misc Phase_C_Second;
-    sTAG_TA_Misc Phase_A_Three;
-    sTAG_TA_Misc Phase_B_Three;
-    sTAG_TA_Misc Phase_C_Three;
-    u8  Mac[MAC_SIZE];
-}__attribute__((packed))sFormat_TA_Real_Data;
-
-
-
-
-
-
-typedef struct TAG_SERR_INFO
-{
-    u16 oherErrFlag:1;//ÆäËû´íÎó
-    u16 noRequestFlag:1;//ÎŞ Çë ÇóÊı¾İ
-    u16 needAuthenFlag:1;//Î´ ½ø ĞĞÉí ·İ ÈÏÖ¤
-    u16 MacErrFlag:1;   //MAC ¼ÆËã »ò ÑéÖ¤´íÎó
-    u16 authenFailFlag:1;//Éí ·İ ÈÏÖ¤Ê§°Ü
-    u16 validDataFlag:1;//Êı ¾İ ÎŞĞ§
-    u16 KeyUpdateFailFlag:1;//ÃÜ Ô¿ ¸üĞÂÊ§°Ü
-    u16 reserve:1;
-    u16 flowFailFlag:8;//Á÷³ÌÊ§°ÜĞÅÏ¢±êÊ¶ Ë«ÏòÉí·İÈÏÖ¤£º ²Î¿¼¡°6.2.2 F101£º »ñÈ¡ TA ×¨ÓÃÄ£¿é°²È«ĞÅÏ¢¡±¡£ÆäËûÁ÷³Ì£º±£Áô£¬Ö±½ÓĞ´³É 0x00£»
-}__attribute__((packed))sTAG_SERR_INFO;
-
-
-
-typedef struct ControlCode_645
-{
-    u8  functionCode:5;
-    u8  followUpFlag:1;
-    u8  slaveRespondFlag:1;
-    u8  direction:1;
-}__attribute__((packed))sControlCode_645;
-
-
-typedef struct DataArea_645
-{
-    u8  DI[4];
-    u8  opCode[4]; 
-    u8  data[1];
-}__attribute__((packed))sDataArea_645;
-
-
-
-
-typedef struct ProHead_645_ex
-{
-    u8  startCode1;
-    u8  addr[6];
-    u8  startCode2;
-    sControlCode_645  sCtrCode;
-    u8  dataLen;
-    sDataArea_645 dataArea;
-}__attribute__((packed))sProHead_645_ex;
-
-typedef struct ProEnd_645
-{
-    u8  sumCrc;
-    u8  endCode;
-}__attribute__((packed))sProEnd_645;
-
-
-
-
-
-#ifndef  __GNUC__
-#pragma pack(pop)
-#endif
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

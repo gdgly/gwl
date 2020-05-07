@@ -183,6 +183,8 @@ typedef struct nuc970_eint_pins{
 }eint_wakeup_pins;
 */
 
+#define	GPIO_OUT_PUT			0
+#define	GPIO_IN_PUT				1
 
 //USER
 int gpio_init(int num, int direction);

@@ -52,7 +52,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 		return -1;
 	}
 	printf("GetTermESAMInfo-Counter success!!!\n");
-	recvDataBuf[recvDataBufPos ++] = _ChipStatus;//鑺墖鐘舵??
+	recvDataBuf[recvDataBufPos ++] = _ChipStatus;//鑺墖鐘舵€?
 	unsigned char keySerFramer[] = {0x80,0x0E,0x00,0x06,0x00,0x00,};//
 	_rs = MESamComRecv(keySerFramer,6,recvDataBuf,&recvDataBufPos, recvBufSize);
 	if (_rs != 0)

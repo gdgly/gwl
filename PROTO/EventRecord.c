@@ -348,7 +348,7 @@ int CreateEvent1(stru_sjjl_ERC1       ev1)
 	GetTime(&ev1.time);
 	
 	u8 rowdata[256];
-	memset(rowdata,0,sizeof(rowdata));	
+	memset(rowdata,0,sizeof(rowdata));
 	memcpy(rowdata, &ev1, sizeof(ev1));
 
 	GetSecond(&second);
@@ -839,13 +839,14 @@ void send_event(int fd)
 
 	memcpy(pAckBuf, &head, sizeof(head));
 
-	int sum = sizeof(head);
+	
 	
 
 	//检查上报标志位
 	int i;
 	for(i=0; i<80; i++)
 	{
+		int sum = sizeof(head);
 		//有需要可以上报
 		if(m_ErcReport[i] == 1)
 		{
@@ -858,6 +859,7 @@ void send_event(int fd)
 
 			int m = 0;
 			int len = strlen(EventBuf[0]);
+			printf("EventBuf[0] = %s\n\n",EventBuf[0]);
 			
 			for(m=0; m<len/2; m++)
 			{
@@ -926,19 +928,6 @@ void EventInit()
 	}
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1429,7 +1418,6 @@ int WriteVersionFileAndCreateEvent(u8 *newVersion)
 *输出参数：无
 *返 回 值：0 成功，-1 失败
 *======================================================*/
-
 int GetMagnetic(char *pathname,char *buf,int len,int offset)
 {
 	/*
@@ -1482,8 +1470,6 @@ int GetMagnetic(char *pathname,char *buf,int len,int offset)
 	return ret;
 	*/
 }
-
-
 
 
 extern tstMCurDataStruct ACdate;;
@@ -1626,8 +1612,8 @@ int readgprssignal()
 }
 
 
-//F15：终端网络信号品质 by:wrh
 /*
+//F15：终端网络信号品质 by:wrh			集中器使用的是请求一类数据的F15，扩展的协议
 int Process_F15(int FN,AutoRef<Process_698info>&P_698_info)
  {
     void *fenetgy=NULL;//fenetgy初始化为空
@@ -1692,13 +1678,233 @@ replycurpos698);
 	P_698_info->replyblocklen698 += sizeof(DataId698); //DataId698数据单元标识定义
 		return 0;
 }
-
 */
 
 
 
 
+//从文件读取终端版本信息
+int GetTermVersionInfo(stTermVerInfo *termVerInfo)
+{ 
+	char buf[1024] = {0};
+	int i = 0;
+
+	memset(buf, 0x0, sizeof(buf));
+	memset(termVerInfo, 0, sizeof(stTermVerInfo));
+	
+	//厂商代号 
+	if(getConfPara(TERM_SOFT_VERSION, "ManufacturerCode", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<4;i++)
+		{
+			termVerInfo->factry_code[i] = buf[i];
+		} 
+	} 
+	
+	//设备编号 
+	if(getConfPara(TERM_SOFT_VERSION, "DeviceSerialNo", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<8;i++)
+		{
+			termVerInfo->term_number[i] = buf[i];
+		} 
+	} 
+
+	//终端软件版本号 
+	if (getConfPara(TERM_SOFT_VERSION, "TermSoftwareVersion", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<4;i++)
+		{
+			termVerInfo->soft_ver[i] = buf[i];
+		} 
+	}
+	//终端软件发布日期
+	if (getConfPara(TERM_SOFT_VERSION, "TermSoftwareReleaseDate", buf, sizeof(buf), ':') >= 0)
+	{
+		int temp[3] = {0};
+		printf("buf = %s\n",buf);
+		sscanf(&buf[0], "%02d", &temp[2]);
+		sscanf(&buf[2], "%02d", &temp[1]);
+		sscanf(&buf[4], "%02d", &temp[0]);
+
+		printf("temp[0] = %d\n",temp[0]);
+		printf("temp[1] = %d\n",temp[1]);
+		printf("temp[2] = %d\n",temp[2]);
 
 
+		u8 ret[3] = {0};
+		intToBcd(temp[0], &ret[0], 1);
+		intToBcd(temp[1], &ret[1], 1);
+		intToBcd(temp[2], &ret[2], 1);
+		memcpy(&termVerInfo->release_time, ret, 3);
+	}
+	
+	//终端配置容量信息码 
+	if (getConfPara(TERM_SOFT_VERSION, "TermConfCapacityInfoCode", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<11;i++)
+		{
+			termVerInfo->capacity_info[i] = buf[i];
+		}
+	}
+	//终端通信协议版本号
+	if (getConfPara(TERM_SOFT_VERSION, "TermCommProtocolVersion", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<4;i++)
+		{
+			termVerInfo->Protocol_version[i] = buf[i];
+		}
+	}
+	//终端硬件版本号 
+	if (getConfPara(TERM_SOFT_VERSION, "TermHardwareVersion", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<4;i++)
+		{
+			termVerInfo->hardware_ver[i] = buf[i];
+		}
+	}
+	//终端硬件发布日期 
+	if (getConfPara(TERM_SOFT_VERSION, "TermHardwareReleaseDate", buf, sizeof(buf), ':') >= 0)
+	{
+		int temp[3] = {0};
+		printf("buf = %s\n",buf);
+		sscanf(&buf[0], "%02d", &temp[2]);
+		sscanf(&buf[2], "%02d", &temp[1]);
+		sscanf(&buf[4], "%02d", &temp[0]);
+
+		printf("temp[0] = %d\n",temp[0]);
+		printf("temp[1] = %d\n",temp[1]);
+		printf("temp[2] = %d\n",temp[2]);
+
+
+		u8 ret[3] = {0};
+		intToBcd(temp[0], &ret[0], 1);
+		intToBcd(temp[1], &ret[1], 1);
+		intToBcd(temp[2], &ret[2], 1);
+		memcpy(&termVerInfo->hardware_release_time, ret, 3);
+	} 
+
+	return 0;
+}
+
+
+
+
+//从文件读取远程模块版本信息
+int GetRemoteComModalVerInfo(RemoteVerInfo *remoteModalVerInfo)
+{ 
+	char buf[1024] = {0};
+	int i = 0;
+
+	memset(buf, 0x0, sizeof(buf));
+	memset(remoteModalVerInfo, 0, sizeof(RemoteVerInfo));
+	
+	//厂商代号 
+	if (getConfPara(REMOTE_MODULE_CONF_PATH, "ManufacturerCode", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<4;i++)
+		{
+			remoteModalVerInfo->factry_code[i] = buf[i];
+		} 
+	} 
+	
+	//模块型号 
+	if (getConfPara(REMOTE_MODULE_CONF_PATH, "ModuleNo", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<8;i++)
+		{
+			remoteModalVerInfo->module_type[i] = buf[i];
+		} 
+	} 
+
+	//软件版本号  
+	if (getConfPara(REMOTE_MODULE_CONF_PATH, "ModuleSoftwareVersion", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<4;i++)
+		{
+			remoteModalVerInfo->soft_ver[i] = buf[i];
+		} 
+	}
+	
+	//软件发布日期
+	if (getConfPara(REMOTE_MODULE_CONF_PATH, "ModuleSoftwareReleaseDate", buf, sizeof(buf), ':') >= 0)
+	{
+		int temp[3] = {0};
+		printf("buf = %s\n",buf);
+		sscanf(&buf[0], "%02d", &temp[2]);
+		sscanf(&buf[2], "%02d", &temp[1]);
+		sscanf(&buf[4], "%02d", &temp[0]);
+
+		printf("temp[0] = %d\n",temp[0]);
+		printf("temp[1] = %d\n",temp[1]);
+		printf("temp[2] = %d\n",temp[2]);
+
+
+		u8 ret[3] = {0};
+		intToBcd(temp[0], &ret[0], 1);
+		intToBcd(temp[1], &ret[1], 1);
+		intToBcd(temp[2], &ret[2], 1);
+		memcpy(&remoteModalVerInfo->release_time, ret, 3);
+		
+	}
+
+
+	//硬件版本号 
+	if (getConfPara(REMOTE_MODULE_CONF_PATH, "TermHardwareVersion", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<4;i++)
+		{
+			remoteModalVerInfo->hardware_ver[i] = buf[i];
+		}
+	}
+	
+	//硬件发布日期
+	if (getConfPara(REMOTE_MODULE_CONF_PATH, "ModuleHardwareReleaseDate", buf, sizeof(buf), ':') >= 0)
+	{
+		int temp[3] = {0};
+		printf("buf = %s\n",buf);
+		sscanf(&buf[0], "%02d", &temp[2]);
+		sscanf(&buf[2], "%02d", &temp[1]);
+		sscanf(&buf[4], "%02d", &temp[0]);
+
+		printf("temp[0] = %d\n",temp[0]);
+		printf("temp[1] = %d\n",temp[1]);
+		printf("temp[2] = %d\n",temp[2]);
+
+
+		u8 ret[3] = {0};
+		intToBcd(temp[0], &ret[0], 1);
+		intToBcd(temp[1], &ret[1], 1);
+		intToBcd(temp[2], &ret[2], 1);
+		
+		memcpy(&remoteModalVerInfo->hardware_release_time, ret, 3);
+	} 
+
+	//SIM卡ICCID
+	if (getConfPara(REMOTE_MODULE_CONF_PATH, "SIMCardICCID", buf, sizeof(buf), ':') >= 0)
+	{
+		for (i=0;i<20;i++)
+		{
+			remoteModalVerInfo->ICCID[i] = buf[i];
+		}
+	}
+	return 0;
+}
+
+
+
+//检测事件的定时器， 磁场事件、停上电事件、流量超门限事件、TA事件，其他事件都有特定的检测
+int check_evevt_time()
+{
+
+}
+
+
+
+//主动上报的定时器
+int send_event_time()
+{
+	
+}
 
 

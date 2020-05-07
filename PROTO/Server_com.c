@@ -27,12 +27,17 @@
 #include "file.h"
 #include "ListTimer.h"
 #include "local_fun.h"
+#include "LedApp.h"
+#include "GetTerminalESAMData.h"
+#include "Ta_Module.h"
 
 
 
 int login_ok = 0;
 
 #define AFN_37621_OFFSET 12
+int	serial_fd = 0;
+
 
 
 //本地服务器监听端口
@@ -215,6 +220,7 @@ void *serrver_worker(void *arg)    /* 创建出来的子线程所执行的权力函数 */
 	{
 		free(buf);
 		login_ok = 1;
+		LedAppFlicker();
 		printf("login success\n");
 	}
 	else
@@ -417,6 +423,7 @@ connect:
 			{
 				free(buf);
 				login_ok = 1;
+				LedAppFlicker();
 				printf("login success\n");
 			}
 			else
@@ -556,7 +563,7 @@ void *local_worker(void *arg)
 {
 	while(1)
 	{
-		tick();
+		TimerTick();
 		usleep(200000);				
 	}
 }
@@ -830,7 +837,7 @@ int ComPort_Send(int fd, char *send_buf,int data_len)
 
 int main(int argc, char *argv[])
 {
-	int	connfd = 0;
+	int	connfd = 0, retry = 3;
 	int res;
 	pthread_t CLIENT_WORKER_THREAD;		//客户端线程
 	pthread_t SERVER_WORKER_THREAD;		//服务器线程，用于以太网连接主站
@@ -854,6 +861,10 @@ int main(int argc, char *argv[])
 	load_flow_without_lock();
 
 	init_List_Timer();
+
+	LedAppInit();
+	
+	
 	//客户端
 	res = pthread_create(&CLIENT_WORKER_THREAD,NULL,(void *)client_worker,NULL);
 	if(res!=0)
@@ -876,7 +887,50 @@ int main(int argc, char *argv[])
 		printf("Create WORKER thread error!\n");
 		exit(1);
 	}
+	//TESAM
+	res = MEsamDevOpen();
+	if(res != 0)
+	{
+		printf("MEsamDevOpen failed\n");
+		return -1;
+	}
+	//TA UART
+	serial_fd = OpenTaUartPort(serial_fd, "/dev/ttyS9");
+	if(serial_fd == -1)
+	{
+		printf("OpenTaUartPort error\n");
+		return -1;
+	}
+	printf("serialfd= %d\n", serial_fd);
+	res = ComTaUart_Set(serial_fd, 2400, 0, 8, 1, 'e');
+	if(res == -1)
+	{
+		printf("ComTaUart_Set error\n");
+		return -1;
+	}
 	
+	while(retry--)
+	{
+		res = TerminalCtAuthenticate();
+		if(res < 0)
+		{
+			if(retry)
+			{
+				usleep(100*1000);
+				continue;
+			}
+		}
+		else
+		{
+			break;
+		}
+	}
+	if(res == -1)
+	{
+		printf("TerminalCtAuthenticate failed\n");
+		return -1;
+	}
+	TaModuleInit();
 	//服务器
 	HOST.FD = Server_listen(HOST.PORT);
 	if(HOST.FD < 0)
@@ -907,6 +961,8 @@ int main(int argc, char *argv[])
 	}
 	
 	close(HOST.FD);
+	CloseTaUartPort(serial_fd);
+	MEsamDevClose();
 	
 	getchar();
 	getchar();

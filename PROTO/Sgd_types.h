@@ -18,6 +18,7 @@ typedef signed long long                                    INT64;
 typedef unsigned int                                        UINTPTR;
 typedef signed int                                          INTPTR;
 
+typedef enum {false=0,true = !false}bool;
 //typedef INT32                                               ssize_t;
 //typedef UINT32                                              size_t;
 

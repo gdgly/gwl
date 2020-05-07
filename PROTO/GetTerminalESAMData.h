@@ -20,9 +20,17 @@
 
 //#define MRS_PROTO645_DATAGRAM_LEN_MAX		252
 
-
-int TerminalCtAuthenticate(int fd, unsigned char* ESAMID);
-int GetTASecurityInfo(unsigned char* sendDataBuf, int sendDataLens, unsigned char* recvDataBuf, int recvBufSize, int *rx_ok_len);
-int GetTABaudrate(int serial_fd, unsigned char formatCode, unsigned char *BaudrateWord);
-int SetTABaudrate(int fd, unsigned char formatCode, unsigned char BaudrateWord, unsigned char *MAC, unsigned char* MAC2, unsigned int MAC2Len);
+int OpenTaUartPort(int fd,char* port);
+void CloseTaUartPort(int fd);
+int ComTaUart_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int parity);
+int ComTaUart_Recv(int serial_fd, char *rcv_buf,int data_len);
+int ComTaUart_Send(int fd, char *send_buf,int data_len);
+int TerminalCtAuthenticate(void);
+int GetTerminalSecurityAuthenInfo(unsigned char* sendDataBuf, int sendDataLens, unsigned char* recvDataBuf, int recvBufSize, int *rx_ok_len);
+int GetTABaudrate(unsigned char sendDataBuf, unsigned char *BaudrateWord);
+int SetTABaudrate(unsigned char formatCode, unsigned char BaudrateWord, unsigned char *MAC, unsigned char* MAC2, unsigned int MAC2Len);
+int GetCTModuleStatus(unsigned char *formatCode, unsigned char *phaseABCStatus, unsigned char *MAC2);
+int GetTAModuleSecurityInfo(unsigned char formatCode, unsigned char* mStatRand, int RandSize, unsigned char* Frame, int *FrameLen);
+int TAModuleKeyUpdate(int keyNums, unsigned char* sendDataBuf, int sendDataLens, unsigned char* MAC, int MACSIZE);
+int GetTerminalEnableControlParam(unsigned char* mStatRand, int RandSize, unsigned char* phaseAEnable, unsigned char* phaseBEnable, unsigned char* phaseCEnable);
 #endif

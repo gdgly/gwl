@@ -11,7 +11,7 @@ WEC_LDFLAGS=
 #STRIP=arm-linux-strip
 STRIP=strip
 TARGET = Server
-SRCS := Mrs_fw_proto376_1.c Server_com.c file.c ProtocolD645.c  rtc.c	gpio.c Tools.c EventRecord.c SQLite.c queue.c  MESamBase.c MESamComMgr.c util.c para.c AcSample.c ListTimer.c local_fun.c
+SRCS := Mrs_fw_proto376_1.c Server_com.c file.c ProtocolD645.c  rtc.c	gpio.c Tools.c EventRecord.c SQLite.c queue.c  MESamBase.c MESamComMgr.c util.c para.c AcSample.c ListTimer.c local_fun.c LedApp.c GetTerminalESAMData.c Ta_Module.c
 LIBS= -lpthread -lsqlite3 -lc -lgcc
 #$(STRIP) $(TARGET)
 all:
