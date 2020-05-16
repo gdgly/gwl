@@ -16,12 +16,15 @@
 #include "MESamComMgr.h"
 #include "GetTerminalESAMData.h"
 #include <time.h>
+#include "Ta_Module.h"
+#include <linux/rtc.h>
+#include "rtc.h"
+#include "archives.h"
 
 
 
 
 CIRCUIT_SYSTEM_INFO_STRU gChargeSystemInfo={0};			//设备信息域，包含逻辑地址
-TermEventRecordSet TermEventRecord = {0};				//F9终端事件记录配置设置
 stUpflag Upflag={0};									//登录心跳回复标志，全部变量
 
 
@@ -207,6 +210,9 @@ uint8_t* getCmdDataEnd(uint8_t *pBuf, uint16_t len)
 {
 	stFrame13761Head *pFrame = (stFrame13761Head *)pBuf;
 	uint8_t* data_end = NULL;
+    #if debug_info
+        printf("[getCmdDataEnd]: enter \n");
+    #endif
 	if ((pBuf == NULL) || (len == 0))
 	{
 		return NULL;
@@ -222,7 +228,9 @@ uint8_t* getCmdDataEnd(uint8_t *pBuf, uint16_t len)
 	{
 		data_end = (uint8_t*)getAppAuxPwdDown(pBuf, len);
 		if (!data_end)
+                   {
 			data_end = (uint8_t*)getAppAuxDownTp(pBuf, len);
+                   }
 	}
 	else
 	{
@@ -249,6 +257,7 @@ uint8_t* getCmdDataEnd(uint8_t *pBuf, uint16_t len)
 uint8_t isAuxWithPwd(uint8_t AFN)
 {
 	uint8_t ret = 0;
+         printf("file:%s, line:%d, func:[%s ]\n",__FILE__,__LINE__,__func__);
 	switch(AFN)
 	{
 //		case AFN_00_CONFIRM:			//00H	确认∕否认
@@ -287,6 +296,9 @@ uint8_t isAuxWithPwd(uint8_t AFN)
 AppAuxPwd* getAppAuxPwdDown(uint8_t *pBuf, uint16_t len)
 {
 	stFrame13761Head *pFrame = (stFrame13761Head *)pBuf;
+    #if debug_info
+        printf(" [getAppAuxPwdDown] enter\n");
+    #endif
 	if ((pBuf == NULL) || (len == 0))
 	{
 		return NULL;
@@ -308,13 +320,13 @@ AppAuxPwd* getAppAuxPwdDown(uint8_t *pBuf, uint16_t len)
 	{
 		return (AppAuxPwd*)(&pFrame->control + pFrame->len.len_un.len_s.m_len - sizeof(AppAuxPwd));
 	}
-	else if(pFrame->len.len_un.len_s.m_len - sizeof(stFrame13761CtrlType) - sizeof(stFrame13761AddrType) < sizeof(AppAuxPwd))
+	else if((pFrame->len.len_un.len_s.m_len - sizeof(stFrame13761CtrlType) - sizeof(stFrame13761AddrType) ) <  (sizeof(AppAuxPwd)))
 	{
 		return NULL;
 	}
 	else
 	{
-		return (AppAuxPwd*)(&pFrame->control + pFrame->len.len_un.len_s.m_len - sizeof(AppAuxPwd)- sizeof(AppAuxTp));//- sizeof(AppAuxTp) add by phh
+		return  (AppAuxPwd*)((&pFrame->control ) +  ( pFrame->len.len_un.len_s.m_len) -( sizeof(AppAuxPwd))- (sizeof(AppAuxTp)));//- sizeof(AppAuxTp) add by phh
 	}	
 }
 
@@ -559,11 +571,11 @@ static uint8_t AFN_00H(uint8_t *pBuf, uint16_t len)
 
 	if(Fn == 0x01)
 	{
-		printf("quanbuqueren\n\n");
+		printf("[AFN_00H] all   affirm \n\n");
 	}
 
 	//F03按数据单元标识确认、否认
-	if(Fn == 0x03)
+	else if(Fn == 0x03)
 	{
 		Err=(stError*)&di[1];
 
@@ -621,13 +633,45 @@ static uint8_t GDW376_1_AFN01H_01H(uint8_t* pBuf, uint16_t* len)
 //software init
 static uint8_t GDW376_1_AFN01H_02H(uint8_t* pBuf, uint16_t* len)
 {
+	//事件记录数据初始化
+	int ret = EventDataInit();
+	if(ret == -1)return 0;
+
+	//流量统计数据初始化
+	ret = FlowDataInit();
+	if(ret == -1)return 0;
+	
+	//电流存储数据初始化
+	ret = ACdatecurrentInit();
+	if(ret = -1)return 0;
+
+	//数据区初始化事件
+	stru_sjjl_ERC1 ev1 = {0};
+	ev1.CSH = 1;
+	CreateEvent1(ev1);	
+	
 	return 1;
 }
 //goback factory
 static uint8_t GDW376_1_AFN01H_03H(uint8_t* pBuf, uint16_t* len)
 {
 	int ret = 0;
-	ret = TermParaDefault();
+
+	//事件记录数据初始化
+	ret = EventDataInit();
+	if(ret == -1)return 0;
+
+	//流量统计数据初始化
+	ret = FlowDataInit();
+	if(ret == -1)return 0;
+	//电流存储数据初始化
+	ret = ACdatecurrentInit();
+	if(ret = -1)return 0;
+
+
+	
+	ret += TermParaDefault();
+	ret += ArchDataReset();
 
 	//参数初始化及全体数据区初始化事件
 	if(ret != 0)
@@ -845,6 +889,33 @@ static uint8_t GDW376_1_AFN04H_03H(uint8_t* pBuf, uint16_t* len)
 	return (ret==0)? 1:0;    
 }
 
+//F5终端上行通信消息认证参数
+static uint8_t GDW376_1_AFN04H_05H(uint8_t* pBuf, uint16_t* len)
+{
+	if(!pBuf||!len) return 0;
+	TermMessageConParameterSet* pPara = (TermMessageConParameterSet *)pBuf;
+	
+	if (!pPara) return 0;	
+	
+    int ret = 0;
+    char val[5][30];
+    char *pData[] = 
+    {
+        "CS_F5_CONSCHEMENO",            	 val[0],             ":",
+        "CS_F5_CONSCHEMEPARAMETER",          val[1],             ":",
+    };
+	ret += itoa(pPara->F5_ConSchemeNo, val[0], 10);
+	ret += itoa(pPara->F5_ConSchemeParameter, val[1], 10);
+	if(ret) return 0;
+	
+    ret = SaveConfMultiGroup(TERM3761_PARA_CONF, pData, sizeof(pData)/(sizeof(pData[0])*3));
+    *len = sizeof(TermMessageConParameterSet);
+    ConsCheInfoLoad(TERM3761_PARA_CONF);       
+	return (ret==0)? 1:0;    
+}
+
+
+
 
 //F7终端IP和端口号
 static uint8_t GDW376_1_AFN04H_07H(uint8_t* pBuf, uint16_t* len)
@@ -998,7 +1069,41 @@ static uint8_t GDW376_1_AFN04H_09H(uint8_t* pBuf, uint16_t* len)
 }
 static uint8_t GDW376_1_AFN04H_10H(uint8_t* pBuf, uint16_t* len)
 {
+	if(!pBuf || !len) return 0;
+
+	int i,ret=0;
+	uint16_t num;
+	uint8_t *pTmp;
+	sArchivesDataUnit ArchData;
+
 	
+	pTmp = pBuf;
+	memcpy((uint8_t*)&num,pTmp,sizeof(num));
+	pTmp += sizeof(num);
+
+	printf("[arch]InPutData:\n");
+//	printhexdata(pBuf, num*sizeof(ArchData)+2);	
+//	
+//	for(i=0;i<num;i++)
+//	{
+//		memset((uint8_t*)&ArchData,0,sizeof(ArchData));
+//		memcpy((uint8_t*)&ArchData,pTmp,sizeof(ArchData));
+//		pTmp += sizeof(sArchivesDataUnit);
+//		ret += InsertDataStruct(&ArchData);
+//
+//		memset((uint8_t*)&ArchData,0,sizeof(ArchData));
+//		ReadArchFromDb(&ArchData,ASC_ROW_ID,i+1);
+//		printf("[arch]ReadData:\n");
+//		printhexdata(&ArchData, sizeof(ArchData));
+//	}
+//	if(!ret)
+//	{
+//		GetArchPara()->EquipNum = num;
+//		*len =num*sizeof(ArchData)+2;
+//		return 0;
+//	}
+//	printf("[arch]setup failled\n");
+	return 1;
 }
 
 static uint8_t GDW376_1_AFN04H_16H(uint8_t* pBuf, uint16_t* len)
@@ -1023,6 +1128,33 @@ static uint8_t GDW376_1_AFN04H_16H(uint8_t* pBuf, uint16_t* len)
     ret = SaveConfMultiGroup(TERM3761_PARA_CONF,pData,sizeof(pData)/(sizeof(pData[0])*3));
 	*len = sizeof(sVirtualNet);
     VirtualNetLoad(TERM3761_PARA_CONF);
+	return (ret==0)? 1:0;     
+}
+
+static uint8_t GDW376_1_AFN04H_36H(uint8_t* pBuf, uint16_t* len)
+{
+    if (!pBuf||!len) return 0;
+	u32 data,*pPara;
+
+
+	pPara = &data;
+	memcpy((u8*)pPara,pBuf,4);	
+	if(!pPara) return 0;
+
+    int ret = 0;
+    int i;
+    char val[1][20];
+    
+    char *pData[] = 
+    {
+        "CS_F36_FLUX_LIMITOR",  	val[0], ":",
+    };
+	printf("[04F36]pPara=%d\n",*pPara);
+	ret += itoa(*pPara,val[0],10);
+	printf("[04F36]val=%s\n",val[0]);
+    ret = SaveConfMultiGroup(TERM3761_PARA_CONF,pData,sizeof(pData)/(sizeof(pData[0])*3));
+	*len = sizeof(u32);
+	TermUpFluxLimitLoad(TERM3761_PARA_CONF);
 	return (ret==0)? 1:0;     
 }
 
@@ -1177,6 +1309,9 @@ static uint8_t GDW376_1_AFN04H_154H(uint8_t* pBuf, uint16_t* len)
 {
     if(!pBuf||!len) return 0;
 
+	current_transformer_rate_stru pParaBack;
+	memcpy(&pParaBack, &GetCiSysInfo()->TARatePara, sizeof(current_transformer_rate_stru));		//备份一下参数
+	
     current_transformer_rate_stru* pPara = (current_transformer_rate_stru *)pBuf;
 	
 	if (!pPara) return 0;
@@ -1202,6 +1337,34 @@ static uint8_t GDW376_1_AFN04H_154H(uint8_t* pBuf, uint16_t* len)
     ret = SaveConfMultiGroup(TERM3761_PARA_CONF,pData,i);
     *len = sizeof(current_circuit_param_stru);
 	ret += TaRateParaLoad(TERM3761_PARA_CONF);
+
+	if(!ret)	//设置成功，产生TA变比更换事件
+	{
+		stru_sjjl_ERC34 ev34;
+		memset(&ev34, 0, sizeof(ev34));
+		ev34.ss = 1;		//起止标志
+		ev34.pn = 1;		//测量点号
+		ev34.extype = 0x3;	//TA变比	
+		if(pParaBack.phase_a_trans != GetCiSysInfo()->TARatePara.phase_a_trans)	//A相变比更换
+		{
+			ev34.A = 1;
+		}
+
+		if(pParaBack.phase_b_trans != GetCiSysInfo()->TARatePara.phase_b_trans)	//B相变比更换
+		{
+			ev34.B = 1;
+		}
+		
+		if(pParaBack.phase_c_trans != GetCiSysInfo()->TARatePara.phase_c_trans)	//C相变比更换
+		{
+			ev34.B = 1;
+		}
+		
+		CreateEvent34(ev34);	//记录事件		
+
+	
+	}
+	
 	return (ret==0)? 1:0;
 
 }
@@ -1223,6 +1386,9 @@ static uint8_t AFN_04H(uint8_t *pBuf, uint16_t len, int fd)
 	uint8_t* dataend = NULL;
 	stDataDI* di = NULL;
 	uint8_t type = 0;
+    #if debug_info
+        printf("[AFN_04H]:   enter\n");
+    #endif
 	if ((pBuf == NULL) || (len == 0))
 	{
 		return 0;
@@ -1230,6 +1396,7 @@ static uint8_t AFN_04H(uint8_t *pBuf, uint16_t len, int fd)
 	pFrame = (stFrame13761Head *)pBuf;
 	if (pFrame->userdata.afn != AFN_04_SETUP_PARM)
 	{
+		printf("[AFN_04H] parametert error \n");
 		return 0;
 	}
 	
@@ -1259,6 +1426,9 @@ static uint8_t AFN_04H(uint8_t *pBuf, uint16_t len, int fd)
 		}
 		if (fail == 0)
 		{
+		    #if debug_info
+               printf("[AFN_04H]:  Fn=%d\n ",Fn);
+            #endif
 			switch(Fn)
 			{
 				case 1:		//F1终端上行通信参数设置
@@ -1266,6 +1436,9 @@ static uint8_t AFN_04H(uint8_t *pBuf, uint16_t len, int fd)
 					break;
 				case 3:		//F3主站IP地址和端口
 					nRet = GDW376_1_AFN04H_03H((uint8_t*)&di[1], &di_data_len);
+					break;
+				case 5:		//F5终端上行通信消息认证参数
+					nRet = GDW376_1_AFN04H_05H((uint8_t*)&di[1], &di_data_len);
 					break;
 				case 7:		//终端 IP 地址和端口
 					nRet = GDW376_1_AFN04H_07H((uint8_t*)&di[1], &di_data_len);		
@@ -1276,10 +1449,17 @@ static uint8_t AFN_04H(uint8_t *pBuf, uint16_t len, int fd)
 				case 9:		//F9终端事件记录配置设置
 					nRet = GDW376_1_AFN04H_09H((uint8_t*)&di[1], &di_data_len);
 					break;
+				case 10:		//F9终端事件记录配置设置
+					nRet = GDW376_1_AFN04H_10H((uint8_t*)&di[1], &di_data_len);
+					break;				
 				case 16:		//F9终端事件记录配置设置
 					nRet = GDW376_1_AFN04H_16H((uint8_t*)&di[1], &di_data_len);
 					break;
+				case 36:		//F9终端事件记录配置设置
+					nRet = GDW376_1_AFN04H_36H((uint8_t*)&di[1], &di_data_len);
+					break;
 				case 89:	//设置终端逻辑地址
+					printf("[AFN_04H]Set the terminal logical address***\n\n");
 					nRet = GDW376_1_AFN04H_89H((uint8_t*)&di[1], &di_data_len);
 					break;
 				case 91:	//设置终端地理位置
@@ -1296,14 +1476,13 @@ static uint8_t AFN_04H(uint8_t *pBuf, uint16_t len, int fd)
 					break;
 			}
 			
-			if(nRet != 0)
+			if(nRet != 0)	
 			{
-				//参数变更事件记录
-				if (Fn == 1 || Fn == 3 || Fn == 7 || Fn == 8 || Fn == 9 || Fn == 89 || Fn == 153 || Fn == 154) 
+				//参数变更事件记录，只支持一个数据单元标识符
+				if (Fn == 1 || Fn == 3 || Fn == 7 || Fn == 8 || Fn == 9 || Fn == 10 || Fn == 16 || Fn == 89 || Fn == 91 ||  Fn == 153 || Fn == 154) 
 				{ 
 					//记录事件	
 					stru_sjjl_ERC3 event3;
-					
 					u8 buf[4] = {0};
 					buf[0] = 0x00;
 					buf[1] = 0x00;
@@ -1313,11 +1492,17 @@ static uint8_t AFN_04H(uint8_t *pBuf, uint16_t len, int fd)
 					buf[2] = DT.DT1;
 					buf[3] = DT.DT2;
 					
-					event3.uniundata = buf;
-					event3.MstAddr = 0;					//启动站地址?
-					CreateEvent3(event3) >= 0;
+					//event3.uniundata = buf;
+					memcpy(&event3.uniundata, buf, 4);
+
+					//启动站地址就是主站地址和终端组地址标识 A3
+					event3.MstAddr = 0;		//终端启动发送帧的 MSA 应为零，其主站响应帧的 MSA 也应为零
+					
+					CreateEvent3(event3);
 				}
+				
 			}
+			
 		}
 		
 		if ((nRet == 0) || (fail > 0))
@@ -1358,7 +1543,7 @@ static uint8_t GDW376_1_AFN09H_01H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
 	{
 		return 0;
 	}
-
+/*
 	u8 head[4] = {0};
 
 	stDT dt;
@@ -1373,13 +1558,15 @@ static uint8_t GDW376_1_AFN09H_01H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
 	head[3] = dt.DT2;
 
 	memcpy(pAckBuf, head, 4);
-
+*/
 	stTermVerInfo termVerInfo;
 	GetTermVersionInfo(&termVerInfo);
 
 	memcpy(&pAckBuf[4], &termVerInfo, sizeof(termVerInfo));
+
+	printf("sizeof(termVerInfo) = %d\n",sizeof(termVerInfo));
 	
-	*ack_pos += sizeof(termVerInfo) + 4;
+	*ack_pos += sizeof(termVerInfo);
 	return 1;
 }
 
@@ -1391,6 +1578,7 @@ static uint8_t GDW376_1_AFN09H_09H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
 	{
 		return 0;
 	}
+	/*
 	u8 head[4];
 	
 	stDT dt;
@@ -1405,11 +1593,11 @@ static uint8_t GDW376_1_AFN09H_09H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
 	head[3] = dt.DT2;
 
 	memcpy(pAckBuf, head, 4);
-	
+	*/
 	RemoteVerInfo remoteModalVerInfo;
 	GetRemoteComModalVerInfo(&remoteModalVerInfo);
 	memcpy(&pAckBuf[4], &remoteModalVerInfo, sizeof(remoteModalVerInfo));
-	*ack_pos += sizeof(remoteModalVerInfo) + 4;
+	*ack_pos += sizeof(remoteModalVerInfo);
 	return 1;
 }
 
@@ -1532,6 +1720,18 @@ static uint8_t GDW376_1_AFN0AH_03H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
 
 }
 
+
+//F5终端上行通信消息认证参数
+static uint8_t GDW376_1_AFN0AH_05H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
+{
+    if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;  
+    sTermSysInfo *pPara = GetCiSysInfo();
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&(pPara->MessageCon),sizeof(pPara->MessageCon));
+    *ack_pos += sizeof(pPara->MessageCon);
+	return 1;
+}
+
+
 //F7终端IP和端口号查询
 static uint8_t GDW376_1_AFN0AH_07H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
 {
@@ -1556,6 +1756,44 @@ static uint8_t GDW376_1_AFN0AH_09H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     return 1;
 
 }
+static uint8_t GDW376_1_AFN0AH_10H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
+{
+    if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
+
+	uint16_t ReadNum;
+	uint16_t seq;
+	int i,ret=0;
+	uint8_t *pTmp;
+	sArchivesDataUnit ArchData;
+
+	pTmp = pBuf;
+	memcpy((uint8_t*)&ReadNum,pTmp,2);
+	pTmp += 2;
+	if(ReadNum) 
+		return 0;
+	memcpy(pAckBuf+*ack_pos,(uint8_t*)&ReadNum,sizeof(ReadNum));
+	*ack_pos += sizeof(ReadNum);
+	for(i=0;i<ReadNum;i++)
+	{
+		memcpy((uint8_t*)&seq,pTmp,2);
+		pTmp += 2;
+		if(0==ArchSearchData(seq,&ArchData))
+		{
+			memcpy(pAckBuf+*ack_pos,(uint8_t*)&ArchData,sizeof(sArchivesDataUnit));
+			*ack_pos += sizeof(sArchivesDataUnit);
+		}
+		else
+		{
+			break;
+		}
+	}
+	if(i<ReadNum)
+	{
+		return 0;
+	}
+	return 1;
+}
+
 static uint8_t GDW376_1_AFN0AH_16H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
 {
     if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
@@ -1563,6 +1801,18 @@ static uint8_t GDW376_1_AFN0AH_16H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBu
     sTermSysInfo *pPara = GetCiSysInfo();
     memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->VirtualNet,sizeof(pPara->VirtualNet));
     *ack_pos += sizeof(pPara->VirtualNet);
+    return 1;
+}
+static uint8_t GDW376_1_AFN0AH_36H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
+{
+    if(!pBuf||!len||!pAckBuf||!ack_pos) return 0;
+    
+    sTermSysInfo *pPara = GetCiSysInfo();
+    memcpy(pAckBuf+*ack_pos,(uint8_t*)&pPara->FluxLimitor,sizeof(pPara->FluxLimitor));
+	printf("[limi]:\n");
+	printhexdata(pAckBuf+*ack_pos, 4);
+    *ack_pos += sizeof(pPara->FluxLimitor);
+	printf("[limi]flux=%d\n",pPara->FluxLimitor);
     return 1;
 }
 
@@ -1648,7 +1898,7 @@ static uint8_t AFN_0AH(uint8_t *pBuf, uint16_t len, int fd)
 		fail = 0;
 		di_data_len = 0;
 		di_cnt++;
-		printf("[AFN_0A]DT1=0x%x\nDT2=0x%x\n",di->DT.DT1,di->DT.DT2);
+		printf("[AFN_0A]DT1=0x%x\nDT2=0x%x \n",di->DT.DT1,di->DT.DT2);
 		nRet = getFn(di->DT, &Fn);
 		if (nRet == 0)
 		{
@@ -1670,16 +1920,19 @@ static uint8_t AFN_0AH(uint8_t *pBuf, uint16_t len, int fd)
 			setFn(Fn, &pDI->DT);
 			setPn(Pn, &pDI->DA);
 			ack_data_len += sizeof(stDataDI);
+            #if debug_info
+                        printf("[AFN_0AH]: Fn=%d  ************** \n",Fn);
+            #endif
 			switch(Fn)
 			{
 				case 1: 	//F1终端上行通信参数查询
 					nRet = GDW376_1_AFN0AH_01H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
 					break;
-//				case 2: 	//F2终端地理位置信息
-//					//nRet = GDW376_1_AFN0AH_02H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
-//					break;
 				case 3: 	//F3主站IP、端口、APN
 					nRet = GDW376_1_AFN0AH_03H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
+					break;
+				case 5: 	//F5：终端上行通信消息认证参数
+					nRet = GDW376_1_AFN0AH_05H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
 					break;
 				case 7: 	//F7终端ip和端口号
 					nRet = GDW376_1_AFN0AH_07H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
@@ -1687,8 +1940,14 @@ static uint8_t AFN_0AH(uint8_t *pBuf, uint16_t len, int fd)
 				case 9: 	//F9终端事件记录配置查询				//F9本地通信模块版本查询
 					nRet = GDW376_1_AFN0AH_09H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
 					break;
+				case 10: 	//F9终端事件记录配置查询				//F9本地通信模块版本查询
+					nRet = GDW376_1_AFN0AH_10H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
+					break;				
 				case 16: 	
 					nRet = GDW376_1_AFN0AH_16H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
+					break;
+				case 36: 	
+					nRet = GDW376_1_AFN0AH_36H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
 					break;
 				case 89:	//F89终端逻辑地址查询
 					nRet = GDW376_1_AFN0AH_89H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
@@ -1709,6 +1968,14 @@ static uint8_t AFN_0AH(uint8_t *pBuf, uint16_t len, int fd)
 			{
 				ack_data_len -= sizeof(stDataDI);
 			}
+			//检测参数丢失事件
+			if(nRet == 0)
+			{
+				printf("*********111111111111111 = %d\n\n",Fn);
+				CheckParaLostEvent(Fn);	
+			}
+			
+			
 		}
 		if ((nRet == 0) || (fail > 0))
 		{
@@ -1725,11 +1992,16 @@ static uint8_t AFN_0AH(uint8_t *pBuf, uint16_t len, int fd)
 	if (fail_cnt > 0)	//有错误应答否认
 	{
 		nRet = sendAcktoMainStation(ACK_ALL_ERR, pBuf, len, ACKbuf, 0, fd);
+                    #if debug_info
+                        printf("[AFN_0AH] send error  report  ack ************** \n");
+                    #endif
 	}
 	else	//正常应答
 	{
 		nRet = sendAckFrametoMainStation(LINK_CTRL_UP_RES_USERDATA, pBuf, len, ACKbuf, ack_data_len, fd);
-		
+                    #if debug_info
+                        printf("[AFN_0AH] send succseec  report  ack  ************** \n");
+                    #endif
 	}
 	
 	return nRet;
@@ -1738,28 +2010,30 @@ static uint8_t AFN_0AH(uint8_t *pBuf, uint16_t len, int fd)
 
 static uint8_t GDW376_1_AFN05H_031H(uint16_t Pn,uint8_t* pBuf, uint16_t* len)
 {
-	stTime* pPara = (stTime *)pBuf;
-	u8 nyear = pPara->year;
-	u8 mon   = pPara->month;
-	u8 day   = pPara->day;
-	u8 hour  = pPara->hour;
-	u8 min   = pPara->min;
-	u8 sec   = pPara->sec;
+	if(Pn||!pBuf||!len) return 0;
 	
-	nyear = BCD2INT(nyear);
-	mon   = BCD2INT(mon);
-	day   = BCD2INT(day);
-	hour  = BCD2INT(hour);
-	min   = BCD2INT(min);
-	sec   = BCD2INT(sec);
+	int ret = 0;
+	stTime* pPara = (stTime *)pBuf;
+	if(!pPara) return 0;
+	struct rtc_time IntTime;
 
+	
 	//设置时间
-//	RTC_Set(nyear,mon,day,hour,min,sec);     
-//  BKP_WriteBackupRegister(BKP_DR1, 0x1016);	//向执行的后备寄存器中写入用户程序数据
-//  RTC_Get();//更新时间
-
-	//对时成功，生成对时事件
-	if (1)
+	memset(&IntTime,0,sizeof(IntTime));
+	ret = read_time(&IntTime);
+	printf("[debug]:setTime:");
+	printhexdata((void*)pPara,sizeof(stTime));
+	IntTime.tm_sec = Bcd2Hex(pPara->sec);
+	IntTime.tm_min = Bcd2Hex(pPara->min);
+	IntTime.tm_hour = Bcd2Hex(pPara->hour);
+	IntTime.tm_mday = Bcd2Hex(pPara->day);
+	IntTime.tm_mon = Bcd2Hex(pPara->month);
+	IntTime.tm_year = Bcd2Hex(pPara->year)+2000;
+	IntTime.tm_wday = Bcd2Hex(pPara->week);
+	printhexdata((void*)&IntTime, sizeof(IntTime));
+	ret += setup_time(&IntTime);
+	if(!ret) system("hwclock -s");
+	if (!ret)
 	{
 		stru_sjjl_ERC41 ev41 = {0};
 		ev41.mp[0] = 0x00;
@@ -1803,7 +2077,7 @@ static uint8_t GDW376_1_AFN05H_031H(uint16_t Pn,uint8_t* pBuf, uint16_t* len)
 
 static uint8_t AFN_05H(uint8_t *pBuf, uint16_t len, int fd)
 {
-stFrame13761Head *pFrame;
+	stFrame13761Head *pFrame;
 	uint8_t nRet = 0;	
 	uint8_t Fn = 0;
 	uint16_t Pn = 0;
@@ -1942,6 +2216,7 @@ stFrame13761Head *pFrame;
 }
 
 
+//获取终端安全认证信息
 static uint8_t GDW376_1_AFN06H_100H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
 {
 	int ret = 0;
@@ -2087,95 +2362,146 @@ static uint8_t AFN_06H(uint8_t *pBuf, uint16_t len, int fd)
 }
 
 
-static uint8_t GDW376_1_AFN0CH_50H(uint8_t* pBuf, uint16_t* len, uint8_t* pAckBuf, uint16_t* ack_pos)
+static uint8_t GDW376_1_AFN0CH_02H(uint8_t* pBuf, uint16_t* len,uint16_t Pn)
 {
-    
+    if(!pBuf||!len) return 0;
+	if(Pn) return 0;
+
+	struct rtc_time RealTime;
+	stTime TermTime;
+	int ret = 0;
+
+	memset(&RealTime,0,sizeof(RealTime));
+	ret = read_time(&RealTime);
+	if(ret) return 0;
+	TermTime.year = Hex2Bcd(RealTime.tm_year);
+	TermTime.week = Hex2Bcd(RealTime.tm_wday);
+	TermTime.month = Hex2Bcd(RealTime.tm_mon);
+	TermTime.day = Hex2Bcd(RealTime.tm_mday);
+	TermTime.hour = Hex2Bcd(RealTime.tm_hour);
+	TermTime.min = Hex2Bcd(RealTime.tm_min);
+	TermTime.sec = Hex2Bcd(RealTime.tm_sec);
+	memcpy(pBuf,(uint8_t*)&TermTime,sizeof(TermTime));
+	*len = sizeof(TermTime);
+	return 1;
 }
 
-//查询参数
+static uint8_t GDW376_1_AFN0CH_10H(uint8_t* pBuf, uint16_t* len,uint16_t Pn)
+{
+    if(!pBuf||!len) return 0;
+	if(Pn) return 0;
+
+	long mFlow,dFlow;
+
+	mFlow = get_month_flows();
+	dFlow = get_curr_day_flow();
+//	printf("[debug]mFlow = %x\ndFlow=%x\n",mFlow,dFlow);
+	memcpy(pBuf,(uint8_t*)&dFlow,sizeof(dFlow));
+	memcpy(pBuf+sizeof(dFlow),(uint8_t*)&mFlow,sizeof(mFlow));
+	*len = sizeof(dFlow) + sizeof(mFlow);
+	return 1;
+}
+
+static uint8_t GDW376_1_AFN0CH_50H(uint8_t* pBuf, uint16_t* len,uint16_t Pn)
+{
+    if(!pBuf||!len) return 0;
+	if(Pn) return 0;
+    
+    sFormat_TA_Status Para = GetTaStatus();
+    memcpy(pBuf,(uint8_t*)&Para.Phase_A_ststus,sizeof(Para)-sizeof(sTAG_FormatCode));
+    *len += (sizeof(Para)-sizeof(sTAG_FormatCode));
+    return 1;
+
+}
+
 static uint8_t AFN_0CH(uint8_t *pBuf, uint16_t len, int fd)
 {
+	if ((pBuf == NULL) || (len == 0)) return 0;
+
 	stFrame13761Head *pFrame;
 	uint8_t nRet = 0;	
-	uint8_t ACKbuf[PROTOCOL_13761_BUF_SIZE];
-	uint16_t ack_data_len = 0;
+	uint8_t ACKbuf[PROTOCOL_13761_BUF_SIZE],*pAckBuf = NULL;
+	uint16_t ack_data_len;
 	uint8_t Fn = 0;
 	uint16_t Pn = 0;
-	uint8_t fail_cnt = 0;
-	uint8_t fail = 0;
-	uint8_t di_cnt = 0;
-	uint16_t di_data_len = 0;
 	uint8_t* dataend = NULL;
 	stDataDI* di = NULL;
-	if ((pBuf == NULL) || (len == 0))
-	{
-		return 0;
-	}
-	pFrame = (stFrame13761Head *)pBuf;
-	if (pFrame->userdata.afn != AFN_0A_INQUIRY_PARM)
-	{
-		return 0;
-	}
+	uint8_t DiCnt;
 	
+
+	memset(ACKbuf,0,sizeof(ACKbuf));
+	pFrame = (stFrame13761Head *)pBuf;
+	if (pFrame->userdata.afn != AFN_0C_REALTIME_DATA)
+		return 0;	
 	dataend = getCmdDataEnd(pBuf, len);
 	di = (stDataDI*)(pFrame->userdata.data);
-
-	while((uint8_t*)&di[1] <= dataend)
+	DiCnt = 0;
+	pAckBuf = ACKbuf;
+	ack_data_len = 0;
+	while((uint32_t)(&di[DiCnt]) <= (uint32_t)dataend)
 	{
-		fail = 0;
-		di_data_len = 0;
-		di_cnt++;
-		nRet = getFn(di->DT, &Fn);
-		if (nRet == 0)
-		{
-			fail = 1;
-		}
-		nRet = getPn(di->DA, &Pn);
-		if (nRet == 0)
-		{
-			fail = 1;
-		}
-		if (Pn != 0)	//参数查询Pn == 0
-		{
-			//fail = 1;
-		}
-		if (fail == 0)
-		{
-			stDataDI* pDI = (stDataDI*)&ACKbuf[ack_data_len];
-			setFn(Fn, &pDI->DT);
-			setPn(Pn, &pDI->DA);
-			ack_data_len += sizeof(stDataDI);
-			switch(Fn)
-			{
-				case 50: 	//请求一类数据
-					nRet = GDW376_1_AFN0AH_01H((uint8_t*)&di[1], &di_data_len, ACKbuf, &ack_data_len);
-					break;
-				default:
-					nRet = 0;
-					break;
-			}
-			if (nRet == 0)
-			{
-				ack_data_len -= sizeof(stDataDI);
-			}
-		}
-		if ((nRet == 0) || (fail > 0))
-		{
-			fail_cnt++;
-			
-			break;			//后续DI不再判断
-		}
-		di = (stDataDI*)((uint8_t*)&di[1] + di_data_len);
+		uint16_t TmpLen;
+		uint8_t *pTmp;
 
 		
+		
+		nRet = getFn(di[DiCnt].DT, &Fn);
+//		printf("[AFN_0C]DT1=0x%x\nDT2=0x%x\n",di->DT.DT1,di->DT.DT2);
+//		printf("[AFN_0C]Fn=F%d\nnRet = %d\n",Fn,nRet);
+		if(!nRet)
+		{
+			DiCnt++;
+			continue;
+		}
+		nRet = getPn(di[DiCnt].DA, &Pn);
+//		printf("[AFN_0C]DA1=0x%x\nDA2=0x%x\n",di->DA.DA1,di->DA.DA2);
+//		printf("[AFN_0C]Pn=F%d\nnRet = %d\n",Pn,nRet);
+		if(!nRet)
+		{
+			DiCnt++;
+			continue;
+		}
+		DiCnt++;
+		TmpLen = 0;
+		pTmp = pAckBuf+sizeof(stDataDI);
+		switch(Fn)
+		{
+			case 2://时钟召测（读取）
+				nRet = GDW376_1_AFN0CH_02H(pTmp, &TmpLen,Pn);
+				break;
+			case 10://流量查询
+				nRet = GDW376_1_AFN0CH_10H(pTmp, &TmpLen,Pn);
+				break;
+			case 50: 	//请求一类数据
+				nRet = GDW376_1_AFN0CH_50H(pTmp, &TmpLen,Pn);
+				break;
+			default:
+				nRet = 0;
+				break;
+		}
+		if (!nRet)//fail
+		{
+			continue;
+		}	
+//		printf("[debug]fn=%d\nPn=%d\n",Fn,Pn);
+		stDataDI* pDI = (stDataDI*)pAckBuf;
+		setFn(Fn, &pDI->DT);
+		setPn(Pn, &pDI->DA);
+//		printf("[debug]addr=0x%x\nDT1=0x%x\nDT1=0x%x\n",(uint32_t)pAckBuf,(uint32_t)(&pDI->DT.DT1),(uint32_t)(&pDI->DT.DT2));
+//		printhexdata(pAckBuf, 4);
+		ack_data_len += TmpLen + sizeof(stDataDI);		
+		pAckBuf += ack_data_len;
 	}
+
 	
+	printf("datalen=%d\n[ackbuf]:\n",ack_data_len);
+	printhexdata(ACKbuf, ack_data_len);
 	//应答
-	if (fail_cnt > 0)	//有错误应答否认
+	if (!ack_data_len)	//all data is error,ask err
 	{
 		nRet = sendAcktoMainStation(ACK_ALL_ERR, pBuf, len, ACKbuf, 0, fd);
 	}
-	else	//正常应答
+	else//ask part or all data
 	{
 		nRet = sendAckFrametoMainStation(LINK_CTRL_UP_RES_USERDATA, pBuf, len, ACKbuf, ack_data_len, fd);
 		
@@ -2362,8 +2688,10 @@ static uint8_t GDW376_1_AFN0EH_01H(uint8_t* pBuf, uint16_t* len, uint8_t *frame,
 		int m;
 		for(m=0; m<len/2; m++)
 		{
-			sscanf(&EventBuf[i][m*2], "%02x", (int *)&pAckBuf[m+sumlen]);
-
+			int ret;
+			sscanf(&EventBuf[i][m*2], "%02x", &ret);
+			pAckBuf[m+sumlen] = ret;		
+			printf("pAckBuf[m+sumlen] = %d\n",pAckBuf[m+sumlen]);	
 		}	
 		sumlen = sumlen + len/2;
 	}
@@ -2473,8 +2801,9 @@ static uint8_t GDW376_1_AFN0EH_02H(uint8_t* pBuf, uint16_t* len, uint8_t *frame,
 		int m;
 		for(m=0; m<len/2; m++)
 		{
-			sscanf(&EventBuf[i][m*2], "%02x", (int *)&pAckBuf[m+sumlen]);
-
+			int ret;
+			sscanf(&EventBuf[i][m*2], "%02x", &ret);
+			pAckBuf[m+sumlen] = ret;		
 		}	
 		sumlen = sumlen + len/2;
 	}
@@ -2585,8 +2914,10 @@ static uint8_t GDW376_1_AFN0EH_03H(uint8_t* pBuf, uint16_t* len, uint8_t *frame,
 		int m;
 		for(m=0; m<len/2; m++)
 		{
-			sscanf(&EventBuf[i][m*2], "%02x", (int *)&pAckBuf[m+sumlen]);
-
+			//sscanf(&EventBuf[i][m*2], "%02x", (int *)&pAckBuf[m+sumlen]);
+			int ret;
+			sscanf(&EventBuf[i][m*2], "%02x", &ret);
+			pAckBuf[m+sumlen] = ret;		
 		}	
 		sumlen = sumlen + len/2;
 	}
@@ -3589,9 +3920,11 @@ s32 Protocl13761ParseData(u8 *pRecvData, u16 nRecvLen, int fd)
     //    u8 data[1024]={0};
 	stFrame13761Head *pFrame;
 	//GDW376_1_FRAME_DATA RxFrameData;
-	//memcpy(data,pRecvData,nRecvLen);
+	printf("[Protocl13761ParseData]rev data:\n");
+//	printhexdata(pRecvData, nRecvLen);
 	u8 *pdata = GDW376_1_CheckOutFrm2(pRecvData,nRecvLen);	//f返回完整的数据帧的其实地址0x68开头
 
+	printf("[Protocl13761ParseData]%d\n",(int)pdata);
 	if(NULL == pdata)
 	{
 		return ERR_INVALID_DATAUNIT;
@@ -3608,9 +3941,12 @@ s32 Protocl13761ParseData(u8 *pRecvData, u16 nRecvLen, int fd)
 	if ((pFrame->addr.districtCode != pPara->usModleAddr.districtCode) || 
 	    (pFrame->addr.termAddr != pPara->usModleAddr.termAddr && pFrame->addr.termAddr != 0xFFFF))	//终端地址不匹配
 	{
-		//return 0;
+		return 0;
 	}
 	//gprsLedRX.led=1;
+         #if debug_info
+                        printf("[Protocl13761ParseData] pFrame->userdata.afn=%d  ************** \n",pFrame->userdata.afn);
+           #endif
 	switch(pFrame->userdata.afn)	//afn + seq + DA1+DA2+DT1+DT2 + 数据单元
 	{
 		case AFN_00_CONFIRM:					//确认否认帧
@@ -3625,6 +3961,7 @@ s32 Protocl13761ParseData(u8 *pRecvData, u16 nRecvLen, int fd)
 			
 			break;
 		case AFN_04_SETUP_PARM:					//设置参数
+			printf("[Protocl13761ParseData]set param ***\n\n\n\n");
 			AFN_04H(pRecvData, nRecvLen,fd);
 			break;
 		case AFN_05_CONTROL:

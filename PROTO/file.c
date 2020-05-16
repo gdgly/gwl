@@ -477,7 +477,8 @@ int SaveConfMultiGroup(const char* confile, char *para[],int group)
         ret = -1;
 		return ret;
 	}
-    MaSize = FileSize+InDataSize+group*2;//Ã¿×éÔ¤Ëã'\r'ºÍ'\n'
+    MaSize = FileSize+InDataSize+group*4;//
+    printf("[file]MaSize = %d\n",MaSize);
     FileBuf = malloc(MaSize);
 	if(FileBuf==NULL)
 	{
@@ -537,7 +538,7 @@ int SaveConfMultiGroup(const char* confile, char *para[],int group)
             FileSize = strlen(FileBuf);	
 			if((int)(pTem-FileBuf)>=MaSize)
 			{
-				printf("exceed max buf\n");
+				printf("exceed max buf:%d\n",(unsigned)(pTem-FileBuf));
 				break;				
 			}
             continue;

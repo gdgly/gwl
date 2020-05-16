@@ -1,25 +1,28 @@
 #ifndef _TA_MODULE_H_
 #define _TA_MODULE_H_
 
+#include "Sgd_types.h"
 
 
 #define MAC_SIZE 					4
+#define TA_CURENT_OFFSET			22
 
 #define CIRCUIT_NORMAL				0//æ­£å¸¸çŠ¶æ€
 #define CIRCUIT_SHORTCUT			1//çŸ­è·¯
 #define CIRCUIT_BREAK				2//å¼€è·¯
 #define CIRCUIT_SEC_SEPARATE		4//äºŒæ¬¡åˆ†æµ
+#define CIRCUIT_FONT_SHORTCUT		8//ä¸€æ¬¡çŸ­è·¯
 
 
-typedef struct TAG_FormatCode
+typedef struct 
 {
-    u8  IVcode:1;   //1Ê±£¬ ESAM Ê¹ÓÃÍâ²¿ IV£»¡°0¡±Ê±£¬ESAM Ê¹ÓÃÄÚ²¿ IV¡£
-    u8  DirFlag:1;  //¡°1¡± Ê±£¬ Êı¾İÓÉÖ÷Õ¾ÏÂ·¢£»µ±ÏÂ´«±êÊ¶Îª¡°0¡± Ê±£¬ Êı¾İÓÉÖÕ¶ËÏÂ·¢
-    u8  EncryFlag:1;//¡°1¡±Ê±£¬ 645 Ö¡ÖĞÊı¾İÇøµÄ DATA ÎªÃÜÎÄ£»µ±ÃÜÎÄ±êÊ¶Îª¡°0¡±Ê±£¬ 645 Ö¡ÖĞÊı¾İÇøµÄ DATA ÎªÃ÷ÎÄ
+    u8  IVcode:1;   //1æ—¶ï¼Œ ESAM ä½¿ç”¨å¤–éƒ¨ IVï¼›â€œ0â€æ—¶ï¼ŒESAM ä½¿ç”¨å†…éƒ¨ IVã€‚
+    u8  DirFlag:1;  //â€œ1â€ æ—¶ï¼Œ æ•°æ®ç”±ä¸»ç«™ä¸‹å‘ï¼›å½“ä¸‹ä¼ æ ‡è¯†ä¸ºâ€œ0â€ æ—¶ï¼Œ æ•°æ®ç”±ç»ˆç«¯ä¸‹å‘
+    u8  EncryFlag:1;//â€œ1â€æ—¶ï¼Œ 645 å¸§ä¸­æ•°æ®åŒºçš„ DATA ä¸ºå¯†æ–‡ï¼›å½“å¯†æ–‡æ ‡è¯†ä¸ºâ€œ0â€æ—¶ï¼Œ 645 å¸§ä¸­æ•°æ®åŒºçš„ DATA ä¸ºæ˜æ–‡
     u8  Reserve:5;
 }__attribute__((packed))sTAG_FormatCode;
 
-typedef struct Format_TA_Status
+typedef struct 
 {
     sTAG_FormatCode FormatTag;
     u8  Phase_A_ststus;
@@ -29,8 +32,11 @@ typedef struct Format_TA_Status
 }__attribute__((packed))sFormat_TA_Status;
 
 
+
+
 sFormat_TA_Status GetTaStatus(void);
-void TaModuleInit(void);
+int TaModuleInit(void);
+void AppCloseTaPort(void);
 
 
 #endif

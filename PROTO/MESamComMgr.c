@@ -75,6 +75,7 @@ int GetTermESAMInfo(unsigned char* recvDataBuf, unsigned int recvBufSize)
 	memcpy(recvDataBuf, tempDataBuf, recvDataBufPos);
 	//delete tempDataBuf;
 	free(tempDataBuf);
+	tempDataBuf = NULL;
 	//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::GetTermESAMInfo-KeyVersion success!!!\n"));
 	//MY_ACE_ERROR((LM_ERROR,ACE_TEXT("TMESamComMgr::GetTermESAMInfo success recvDataBufPos=%d !!!\n"), recvDataBufPos));
 	printf("GetTermESAMInfo-KeyVersion success!!!\n");
@@ -118,6 +119,7 @@ int TermCertificateUpdateRequest(unsigned char* recvDataBuf, unsigned char certi
 	memcpy(recvDataBuf, tmpDataBuf, recvDataBufPos);
 	//delete tmpDataBuf;
 	free(tmpDataBuf);
+	tmpDataBuf = NULL;
 		
 	//MY_ACE_ERROR((LM_ERROR,"TMESamComMgr::TermCertificateUpdateRequest success!!!\n"));
 	printf("TermCertificateUpdateRequest success!!!\n");

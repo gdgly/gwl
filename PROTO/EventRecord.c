@@ -1,11 +1,17 @@
 #include "EventRecord.h"
-#include<time.h>
-#include<string.h>
-#include<stdlib.h>
+#include <time.h>
+#include <string.h>
+#include <stdlib.h>
 #include "queue.h"
 #include "AcSample.h"
 #include "file.h"
 #include "para.h"
+#include "ListTimer.h"
+#include "Ta_Module.h"
+#include <unistd.h>
+#include "SQLite.h"
+#include <stdio.h>
+
 
 //全局变量
 u8 m_EC1;							//EC1的值，如果重要事件没有写满，值就是++，如果到达255，就一直存储255 （2009年12月15日）
@@ -98,7 +104,6 @@ int saveEventRecordStatus(int ErcName)
 	return 0;
 }
 
-extern TermEventRecordSet TermEventRecord;
 //根据F9的值判断事件是一般事件还是重要事件，以及事件是否需要保存
 int GetValidAndPriorityByErc(int ErcName,int *ValidFlag,int *Priority)
 {
@@ -109,8 +114,16 @@ int GetValidAndPriorityByErc(int ErcName,int *ValidFlag,int *Priority)
 	}
 	i = (ErcName - 1)/8;
 	j = (ErcName - 1)%8;
-	*ValidFlag = (TermEventRecord.CS_F9_EventRecordValidFlag[i] >> j)  & 0x01;		
-	*Priority = (TermEventRecord.CS_F9_EventRatingFlag[i] >> j)  & 0x01;
+
+	sTermSysInfo *pPara = GetCiSysInfo();
+	
+	*ValidFlag = (pPara->EvtRecoSet.CS_F9_EventRecordValidFlag[i] >> j)  & 0x01;		
+	*Priority = (pPara->EvtRecoSet.CS_F9_EventRatingFlag[i] >> j)  & 0x01;
+	for(i=0;i<8;i++)
+	{
+		printf("TermEventRecord.CS_F9_EventRecordValidFlag[%d] = %d\n",i, pPara->EvtRecoSet.CS_F9_EventRecordValidFlag[i]);
+	}
+	
 	return 0;
 }
 
@@ -188,6 +201,7 @@ int saveEventFile(u8 ErcName,u8* data, int len, u32 time)
 		{
 			do
 			{
+				
 				int old_cnt = m_ErcNum[ErcName-1];	
 				DeleteordinaryEvent(ErcName);			//删除最早一个事件
 				GetordinaryEvent_Num(ErcName);			//获取事件数量
@@ -217,6 +231,7 @@ int saveEventFile(u8 ErcName,u8* data, int len, u32 time)
 		{
 			do
 			{
+				printf("\n*********aaaaaaaaaaaaaaaaaaa\n\n");
 				int old_cnt = m_ErcNum[ErcName-1];	
 				DeleteImportanceEvent(ErcName);			//删除最早一个事件
 				GetImportanceEvent_Num(ErcName);		//获取事件数量
@@ -404,7 +419,7 @@ int CreateEvent14(stru_sjjl_ERC14 ev14)
 	int len = 0;
 	int second = 0;
 	ev14.ERCcode=0x0E;	
-	ev14.Le = 0x0A;	
+	ev14.Le = 0x0B;			//协议李没有标志位，实际多一个标志位	
 	
 	char rowdata[256];
 	memset(rowdata,0,sizeof(rowdata));
@@ -486,11 +501,10 @@ int CreateEvent34(stru_sjjl_ERC34 ev34)
 	int len = 0;
 	int second;
 	ev34.ERCcode=0x22;	
-	ev34.Le = 0x03;		
+	ev34.Le = 0x08;		
 	GetTime(&ev34.time);	
 	u8 rowdata[256];
 	memset(rowdata,0,sizeof(rowdata));	
-	
 		
 	memcpy(rowdata, &ev34, sizeof(ev34));
 	GetSecond(&second);
@@ -851,6 +865,7 @@ void send_event(int fd)
 		if(m_ErcReport[i] == 1)
 		{
 			//从数据库获取重要事件	
+			printf("***shangbao*** = %d\n",i);
 			int ret = GetImportanceEvent(i,i+1);
 			if (ret < 0)		//失败
 			{
@@ -863,7 +878,10 @@ void send_event(int fd)
 			
 			for(m=0; m<len/2; m++)
 			{
-				sscanf(&EventBuf[0][m*2], "%02x", (int *)&pAckBuf[m + sum]);
+				//sscanf(&EventBuf[0][m*2], "%02x", (int *)&pAckBuf[m + sum]);
+				int ret;
+				sscanf(&EventBuf[0][m*2], "%02x", &ret);
+				pAckBuf[m + sum] = ret;	
 			}	
 
 			sum = sum + len/2;
@@ -903,6 +921,27 @@ void send_event(int fd)
 }
 
 
+//事件记录数据初始化
+int EventDataInit()
+{
+	//删除数据库文件
+	int ret = remove(FILENAME);
+	if(ret == -1)
+	{
+		printf("Event Date Init fail\n");
+		return -1;
+	}
+		
+	//没有表则进行创建
+	ret = create_table();
+	if(ret == -1)
+	{
+		printf("Event Date Init fail\n");
+		return -1;
+	}		
+	return 0;
+}
+
 //事件记录初始化
 void EventInit()
 {
@@ -941,11 +980,25 @@ int 		  current_month_;			//当前月份
 int 		  current_year_;			//当前年份
 int  flow_event_reported_; 	//抑制频繁报告流量超限。1：可以创建事件，0：不创建事件
 
-int 		  f36_ytxllmx = 1024;//月流量门限
+//int 		  f36_ytxllmx = 1024;//月流量门限
 
 long 		  to_read_;
 long		  to_write_;
 
+
+//流量统计数据初始化
+int FlowDataInit()
+{	
+	FILE *fd = NULL;
+	fd = fopen(flow_path_,"w+");
+	if(fd ==  NULL)
+	{
+		printf("Flow Data Init fail\n");
+		return -1;
+	}
+	fclose(fd);
+	return 0;
+}
 
 /***********************获取流量部分**************************************/
 //处理流量，判断是否产生事件
@@ -1030,8 +1083,8 @@ int set_month_flows_(long value)
 {
 	int res = 0;
 	comm_curr_month_flow_  += value;
-	 //判断是否超流量
- 	if(!flow_event_reported_ && f36_ytxllmx > 0  && comm_curr_month_flow_ > f36_ytxllmx)
+	 //判断是否超流量，流量门限大于0的情况下
+ 	if(!flow_event_reported_ && GetCiSysInfo()->FluxLimitor > 0  && comm_curr_month_flow_ > GetCiSysInfo()->FluxLimitor)
 	{
 		res  = 4;
 		flow_event_reported_ = 1;
@@ -1042,13 +1095,21 @@ int set_month_flows_(long value)
 ////获取流量门限
 long get_csf36_Month_Commflux_threshold()
 {
-   return f36_ytxllmx;
+   return GetCiSysInfo()->FluxLimitor;
 }
 
 //获取当前流量
 long get_month_flows()
 {
 	return comm_curr_month_flow_;
+}
+
+//日总流量
+long get_curr_day_flow()				//CTermParameters::
+{
+	long all_flow =  comm_write_flow_ + comm_read_flow_; 		//总流量
+	
+	return all_flow - comm_last_day_flow_;		//总流量-当日流量
 }
 /***********************获取流量部分end**************************************/
 
@@ -1072,7 +1133,6 @@ int load_flow_without_lock()
 
 	return 0;
 }
-
 
 
 //保存流量到文件	
@@ -1240,9 +1300,8 @@ int getconfparam(const char* confile,const char*name, long * value, char delimit
 
 	return 0;
 }
+
 /*********************************保存参数部分end****************************************/
-
-
 #if 0
 //取得所有下发流量
 long get_comm_read_flow()			//CTermParameters::
@@ -1263,14 +1322,10 @@ long get_comm_flow()				//CTermParameters::
 	return all_flow;
 }
 
-//日总流量
-long get_curr_day_flow()				//CTermParameters::
-{
-	long all_flow =  comm_write_flow_ + comm_read_flow_; 		//总流量
-	
-	return all_flow - comm_last_day_flow_;		//总流量-当日流量
-}
 #endif
+
+
+
 
 
 
@@ -1281,22 +1336,34 @@ long get_curr_day_flow()				//CTermParameters::
 
 /********************************参数丢失事件***********************************/
 //参数丢失事件是否发生
-int IsParaLostEventHappen(int Fn)
+int CheckParaLostEvent(int Fn)				//int Fn
 {
-	stru_sjjl_ERC2 event2;
-
-	if (((Fn >= 1) && (Fn <= 23)) ||((Fn >= 33) && (Fn <= 39)) ||((Fn >= 57) && (Fn <= 61)) ||((Fn >= 89) && (Fn <= 91)))
+	stru_sjjl_ERC2 ev2;
+	memset(&ev2, 0, sizeof(ev2));
+	if (Fn == 1 || Fn == 3 || Fn == 7 || Fn == 8 || Fn == 9 || Fn == 10 || Fn == 16 || Fn == 89 || Fn == 91 ||  Fn == 153 || Fn == 154)
 	{
 		//终端参数丢失事件 
-		event2.LoseTerminal = 1;
-		event2.LosePot = 0;
-		CreateEvent2(event2);
+		ev2.LoseTerminal = 1;
+		ev2.LosePot = 0;
+		CreateEvent2(ev2);
 	}
 	else
 	{
 		return -1;
 	}
-	
+
+/*	
+	//监测到终端参数文件丢失时，产生事件记录
+	if(access(TERM3761_PARA_CONF,F_OK)==-1)			//TERM3761_PARA_CONF
+	{
+		stru_sjjl_ERC2 ev2;
+		memset(&ev2,0,sizeof(ev2));
+		ev2.LoseTerminal = 1;  //终端参数丢失
+		
+		//记录事件
+		CreateEvent2(ev2);
+	}
+*/
 	return 0;
 }
 
@@ -1482,78 +1549,330 @@ extern tstMCurDataStruct ACdate;;
 *======================================================*/
 int GetACdate()
 {
-	com_645_2007_SendFrame(GET_JC_DATA, NULL);
+	if(com_645_2007_SendFrame(GET_JC_DATA, NULL) == -1)
+		return -1;
+	return 0;
 }
+
+
+//电流存储数据初始化
+int ACdatecurrentInit()
+{
+	FILE *fd = NULL;
+	fd = fopen(ACdate_path,"w+");
+	if(fd == NULL)
+	{
+		printf("Current Data Init fail\n");
+		return -1;
+	}
+	fclose(fd);
+	return 0;
+}
+
+
+//存储电流值，从整点开始每隔15分钟记录一次
+void SaveACdatecurrent()
+{
+	if(GetACdate() == -1)
+	{
+		//return;
+	}
+	
+	char date[32] = {0};
+	time_t t;
+	struct tm ftnow;
+	t = time(NULL);	
+	localtime_r(&t, &ftnow);
+
+	ftnow.tm_mon += 1;
+	ftnow.tm_year += 1900;
+	sprintf(date, "%d-%d-%d %d-%d", ftnow.tm_year, ftnow.tm_mon, ftnow.tm_mday, ftnow.tm_hour, ftnow.tm_min);
+
+	char current[64] = {0};
+	sprintf(current,"%10d %10d %10d",ACdate.I[0], ACdate.I[1], ACdate.I[2]);
+	saveConfPara(ACdate_path, date, current, ':');
+}
+
 
 /***************************停上电事件************************/
 //前提：交采正常工作(交采接线正确，交采模块测量准确)，电源模块正常工作，电源模块工作范围覆盖参数F98电压范围
 //电压低于125V，则产生事件 
 int check_power_off()
 {
+	//读取交采数据
+	//GetACdate();
+	
 	//发生停电事件
-	if(ACdate.U[0] <  125 && ACdate.U[1] < 125 && ACdate.U[2] < 125)	
+	if(1)//if(ACdate.U[0] <  125 && ACdate.U[1] < 125 && ACdate.U[2] < 125)	
 	{
 		stru_sjjl_ERC14 ev14;
+		memset(&ev14, 0, sizeof(ev14));
+		ev14.EventEnable = 0x1;
+		ev14.EventNormal = 0x1;
+		
 		//获取停电时间
 		GetTime(&ev14.offtime);
-		u8 buf[5] = {0xff, 0xff, 0xff, 0xff, 0xff};
+		u8 buf[5] = {0xEE, 0xEE, 0xEE, 0xEE, 0xEE};
 		memcpy(&ev14.ontime, buf, 5);
 		
 		//记录事件
 		CreateEvent14(ev14);
+
+		//立即上报
+		//send_event(0);
 	}
 	return 0;
 }
 
-extern int	GetERCEvent_sum;
 int check_power_on()
 {
+	//读取交采数据
+	//GetACdate();
+	
 	//发生上电事件
-	if(ACdate.U[0] >  125 || ACdate.U[1] > 125 || ACdate.U[2] < 125)	
+	if(1)//(ACdate.U[0] >  125 || ACdate.U[1] > 125 || ACdate.U[2] < 125)	
 	{	
 		u8 buf[128] = {0};
 		stru_sjjl_ERC14 ev14 = {0};
 		//检测停电事件
-		int ERC = 14;
-		GetErcEvent(ERC);
-
-		int Event_cont = GetERCEvent_sum;
-		int len = EventBuf[Event_cont-1];
+		int ERC = 14;		
+		int Event_cont = GetErcEvent(ERC);
+		int len = strlen(EventBuf[Event_cont-1]);
 		int i;
 		for(i=0; i<len/2; i++)
 		{
-			sscanf(&EventBuf[Event_cont-1][i*2], "%02x", (int *)&buf[i]);
-
+			//sscanf(&EventBuf[Event_cont-1][i*2], "%02x", (int *)&buf[i]);
+			int ret;
+			sscanf(&EventBuf[Event_cont-1][i*2], "%02x", &ret);
+			buf[i] = ret;		
 		}
 		memcpy(&ev14, buf, sizeof(ev14));
-		if(ev14.ontime.FGW == 0xf && ev14.ontime.FSW == 0xf &&
-		   ev14.ontime.SGW == 0xf && ev14.ontime.SSW == 0xf &&
-		   ev14.ontime.RGW == 0xf && ev14.ontime.RSW == 0xf &&
-		   ev14.ontime.YGW == 0xf && ev14.ontime.YSW == 0xf &&
-		   ev14.ontime.NGW == 0xf && ev14.ontime.NSW == 0xf)
+		if(ev14.ontime.FGW == 0xE && ev14.ontime.FSW == 0xE &&
+		   ev14.ontime.SGW == 0xE && ev14.ontime.SSW == 0xE &&
+		   ev14.ontime.RGW == 0xE && ev14.ontime.RSW == 0xE &&
+		   ev14.ontime.YGW == 0xE && ev14.ontime.YSW == 0xE &&
+		   ev14.ontime.NGW == 0xE && ev14.ontime.NSW == 0xE)
 		{
 			//创建上电事件，更新停电事件
 
 			//获取上电时间
 			GetTime(&ev14.ontime);
 
-
-			u8 *Event = (u8 *)&ev14;
-			
-			char buf[1024] = {0};
+			u8 *Event = (u8 *)&ev14;		
+			char buf[1024] = {0};			
 			for(i=0; i<sizeof(ev14); i++)
 			{
 				sprintf(&buf[i*2], "%02x", Event[i]);
-			}
+			}	
 			int second = 0;
 			GetSecond(&second);
-
+			
 			//更新事件
 			UpdatePower(buf, second);
 		}
 	}
 	return 0;
 }
+
+
+
+/*======================================================
+*函数名称：CheckTAEvent
+*功能描述：检测TA模块的四种事件
+*输入参数：无
+*输出参数：无
+*返 回 值：0 成功，-1 失败
+*======================================================*/
+static sFormat_TA_Status TaStatusBack;
+int CheckTAEvent()
+{
+	sFormat_TA_Status TAStatus = GetTaStatus();
+
+	stru_sjjl_ERC34 ev34;
+	
+	printf("************1111111***********\n\n");
+	//检测A、B、c相二次回路短路
+	memset(&ev34, 0, sizeof(ev34));
+	if(TaStatusBack.Phase_A_ststus != TAStatus.Phase_A_ststus)
+	{
+		if(TAStatus.Phase_A_ststus&0X01 == 1)
+		{
+			ev34.A = 1;
+			ev34.extype = 0x01;  //01二次侧短路
+		}
+	}
+	if(TaStatusBack.Phase_B_ststus != TAStatus.Phase_B_ststus)
+	{
+		if(TAStatus.Phase_B_ststus&0X01 == 1)
+		{
+			ev34.B = 1;
+			ev34.extype = 0x01;  //01二次侧短路
+		}
+	}
+	if(TaStatusBack.Phase_C_ststus != TAStatus.Phase_C_ststus)
+	{
+		if(TAStatus.Phase_C_ststus&0X01 == 1)
+		{
+			ev34.C = 1;
+			ev34.extype = 0x01;  //01二次侧短路
+		}
+	}
+	//发生了，记录事件
+	if(ev34.A == 1 || ev34.B == 1 || ev34.C == 1)
+	{
+		ev34.ss = 1;			//起止标志
+		ev34.pn = 1;			//测量点号
+		CreateEvent34(ev34);	//记录事件	
+		printf("************222222***********\n\n");
+	}
+		
+	
+	//检测A、B、C相CT开路
+	memset(&ev34, 0, sizeof(ev34));
+	if(TaStatusBack.Phase_A_ststus != TAStatus.Phase_A_ststus)
+	{
+		if(TAStatus.Phase_A_ststus&0X02 == 1)
+		{
+			ev34.A = 1;
+			ev34.extype = 0x02; //02开路
+		}
+	}
+	if(TaStatusBack.Phase_B_ststus != TAStatus.Phase_B_ststus)
+	{
+		if(TAStatus.Phase_B_ststus&0X02 == 1)
+		{
+			ev34.B = 1;
+			ev34.extype = 0x02; //02开路
+		}
+	}
+	if(TaStatusBack.Phase_C_ststus != TAStatus.Phase_C_ststus)
+	{
+		if(TAStatus.Phase_C_ststus&0X02 == 1)
+		{
+			ev34.C = 1;
+			ev34.extype = 0x02; //02开路
+		}
+	}
+	//发生了，记录事件
+	if(ev34.A == 1 || ev34.B == 1 || ev34.C == 1)
+	{
+		ev34.ss = 1;			//起止标志
+		ev34.pn = 1;			//测量点号
+		CreateEvent34(ev34);	//记录事件	
+	}
+
+
+	//检测A、B、C相CT二次串入半导体
+	memset(&ev34, 0, sizeof(ev34));
+	if(TaStatusBack.Phase_A_ststus != TAStatus.Phase_A_ststus)
+	{
+		if(TAStatus.Phase_A_ststus&0X04 == 1)
+		{
+			ev34.A = 1;
+			ev34.extype = 0x06; //06回路串接整流设备
+		}
+	}
+	if(TaStatusBack.Phase_B_ststus != TAStatus.Phase_B_ststus)
+	{
+		if(TAStatus.Phase_B_ststus&0X04 == 1)
+		{
+			ev34.B = 1;
+			ev34.extype = 0x06; //06回路串接整流设备
+		}
+	}
+	if(TaStatusBack.Phase_C_ststus != TAStatus.Phase_C_ststus)
+	{
+		if(TAStatus.Phase_C_ststus&0X04 == 1)
+		{
+			ev34.C = 1;
+			ev34.extype = 0x06; //06回路串接整流设备
+		}
+	}
+	//发生了，记录事件
+	if(ev34.A == 1 || ev34.B == 1 || ev34.C == 1)
+	{
+		ev34.ss = 1;			//起止标志
+		ev34.pn = 1;			//测量点号
+		CreateEvent34(ev34);	//记录事件	
+		printf("************3333***********\n\n");
+	}
+
+
+	//检测A、B、C相CT恢复正常
+	memset(&ev34, 0, sizeof(ev34));
+	if(TaStatusBack.Phase_A_ststus != TAStatus.Phase_A_ststus)
+	{
+		if(TAStatus.Phase_A_ststus == 0x00)
+		{
+			ev34.A = 1;
+			ev34.extype = 0x00; //00恢复正常
+		}
+	}
+	if(TaStatusBack.Phase_B_ststus != TAStatus.Phase_B_ststus)
+	{
+		if(TAStatus.Phase_B_ststus == 0x00)
+		{
+			ev34.B = 1;
+			ev34.extype = 0x00; //00恢复正常
+		}
+	}
+	if(TaStatusBack.Phase_C_ststus != TAStatus.Phase_C_ststus)
+	{
+		if(TAStatus.Phase_C_ststus == 0x00)
+		{
+			ev34.C = 1;
+			ev34.extype = 0x00; //00恢复正常
+		}
+	}
+	//发生了，记录事件
+	if(ev34.A == 1 || ev34.B == 1 || ev34.C == 1)
+	{
+		ev34.ss = 0;			//起止标志
+		ev34.pn = 1;			//测量点号
+		CreateEvent34(ev34);	//记录事件	
+		printf("************4444***********\n\n");
+	}
+
+
+	//检测一次分流事件，变比小于 500:5，ABC 三相二次电流等于 0 时产生事件记录 
+	memset(&ev34, 0, sizeof(ev34));
+	if(TaStatusBack.Phase_A_ststus != TAStatus.Phase_A_ststus)
+	{
+		if(TAStatus.Phase_A_ststus&0X08 == 1)
+		{
+			ev34.A = 1;
+			ev34.extype = 0x03; //一次分流
+		}
+	}
+	if(TaStatusBack.Phase_B_ststus != TAStatus.Phase_B_ststus)
+	{
+		if(TAStatus.Phase_B_ststus&0X08 == 0x08)
+		{
+			ev34.B = 1;
+			ev34.extype = 0x03; //一次分流
+		}
+	}
+	if(TaStatusBack.Phase_C_ststus != TAStatus.Phase_C_ststus)
+	{
+		if(TAStatus.Phase_C_ststus&0X08 == 1)
+		{
+			ev34.C = 1;
+			ev34.extype = 0x03; //一次分流
+		}
+	}
+	//发生了，记录事件
+	if(ev34.A == 1 || ev34.B == 1 || ev34.C == 1)
+	{
+		ev34.ss = 1;			//起止标志
+		ev34.pn = 1;			//测量点号
+		CreateEvent34(ev34);	//记录事件	
+		printf("************5555***********\n\n");
+	}
+		
+	return 0;
+}
+
+
 
 
 
@@ -1893,18 +2212,46 @@ int GetRemoteComModalVerInfo(RemoteVerInfo *remoteModalVerInfo)
 
 
 
-//检测事件的定时器， 磁场事件、停上电事件、流量超门限事件、TA事件，其他事件都有特定的检测
+//检测事件的定时器， 磁场事件、停上电事件、流量超门限事件、TA事件、参数丢失，其他事件都有特定的检测
+static void EvevtCallBack(void * data)
+{
+	//流量超门限事件
+	//处理流量
+	dealFlow();
+	
+	//存储流量
+	save_comm_flow(1);
+
+	//停电事件
+	//check_power_off();
+
+	//TA事件
+	//CheckTAEvent();
+	
+	//磁场事件
+
+
+	//参数丢失
+	//CheckParaLostEvent();
+}
 int check_evevt_time()
 {
+	add_timer(2, 6, EvevtCallBack, NULL, NULL);
 
+	//程序启动上电事件检测
+	check_power_on();	
+	return 0;
 }
 
 
-
+static void SendEvevtCallBack(void * data)
+{
+	send_event(0);		//需要文件描述符
+}
 //主动上报的定时器
 int send_event_time()
 {
-	
+	add_timer(2, 10, SendEvevtCallBack, NULL, NULL);
 }
 
 

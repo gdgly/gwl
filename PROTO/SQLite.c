@@ -330,7 +330,8 @@ int DeleteImportanceEvent(int ERC)
 	}
 	else
 	{
-		rsl = execFormatDML(mpDB, "delete from ImportanceEvent where ERC == %d limit 0,1;", ERC);
+		//rsl = execFormatDML(mpDB, "delete from ImportanceEvent where ERC == %d limit 0,1;", ERC);			//移植的库不支持这个语法
+		rsl = execFormatDML(mpDB, "delete from ImportanceEvent where ERC=%d and time = (select min(time) from ImportanceEvent where ERC=%d);", ERC,ERC);
 	}
     DBclose(mpDB);
     return ( rsl == SQLITE_OK ) ? 0 : -1;
@@ -358,7 +359,8 @@ int DeleteordinaryEvent(int ERC)
 	}
 	else
 	{
-		rsl = execFormatDML(mpDB, "delete from ordinaryEvent where ERC == %d limit 0,1;", ERC);
+		//rsl = execFormatDML(mpDB, "delete from ordinaryEvent where ERC == %d limit 0,1;", ERC);			//移植的库不支持这个语法
+		rsl = execFormatDML(mpDB, "delete from ordinaryEvent where ERC=%d and time = (select min(time) from ordinaryEvent where ERC=%d);", ERC,ERC);
 	}
 
     DBclose(mpDB);
@@ -450,12 +452,18 @@ int getImportancenum(void *para, int ncolumn, char **columnvalue, char **columnn
 	ERC = *(int *)para;
 	if(ERC == 0)
 	{
-		sscanf(columnvalue[0], "%d", (int *)&m_EC1);	
+		//sscanf(columnvalue[0], "%d", (int *)&m_EC1);	
+		int ret;
+		sscanf(columnvalue[0], "%d", &ret);
+		m_EC1 = ret;	
 		//printf("m_EC1 = %d\n", m_EC1);	
 	}
 	else
 	{
-		sscanf(columnvalue[0], "%d", (int *)&m_ErcNum[*(int *)para - 1]);	
+		//sscanf(columnvalue[0], "%d", (int *)&m_ErcNum[*(int *)para - 1]);	
+		int ret;
+		sscanf(columnvalue[0], "%d", &ret);
+		m_ErcNum[*(u8 *)para - 1] = ret;		
 		//printf("m_ErcNum[%d] = %d\n", ERC-1, m_ErcNum[*(int *)para - 1]);	
 	}
 	return 0;
@@ -502,12 +510,18 @@ int getordinarynum(void *para, int ncolumn, char **columnvalue, char **columnnam
 	ERC = *(int *)para;
 	if(ERC == 0)
 	{
-		sscanf(columnvalue[0], "%d", (int *)&m_EC2);	
+		//sscanf(columnvalue[0], "%d", (int *)&m_EC2);
+		int ret;
+		sscanf(columnvalue[0], "%d", &ret);
+		m_EC2 = ret;	
 		//printf("m_EC1 = %d\n", m_EC2);	
 	}
 	else
 	{
-		sscanf(columnvalue[0], "%d", (int *)&m_ErcNum[*(int *)para - 1]);	
+		//sscanf(columnvalue[0], "%d", (int *)&m_ErcNum[*(int *)para - 1]);	
+		int ret;
+		sscanf(columnvalue[0], "%d", &ret);
+		m_ErcNum[*(int *)para - 1] = ret;	
 		//printf("m_ErcNum[%d] = %d\n", ERC-1, m_ErcNum[*(int *)para  - 1]);	
 	}
 	return 0;
@@ -534,14 +548,14 @@ int GetImportanceEvent(int Pm, int Pn)
 	memset(EventBuf, 0, sizeof(EventBuf));
 	if(Pm <= Pn)
 	{ 
-		sprintf(sql, "select * from ImportanceEvent limit %d,%d;", Pm, Pn);
+		sprintf(sql, "select * from ImportanceEvent limit %d,%d;", Pm, Pn-Pm);
 	}
 
 	if(Pm > Pn)
 	{
 		sprintf(sql, "select * from ImportanceEvent limit 0,%d;",Pn);
 		rsl = sqlite3_exec(mpDB, sql, GetImportanceEvent_back, (void *)&GetImportanceEvent_sum, &errmsg); 
-		sprintf(sql, "select * from ImportanceEvent limit %d,80;",Pm);
+		sprintf(sql, "select * from ImportanceEvent limit %d,%d;",Pm,81-Pm);
 	}
       		
 	rsl = sqlite3_exec(mpDB, sql, GetImportanceEvent_back, (void *)&GetImportanceEvent_sum, &errmsg); 
@@ -552,7 +566,7 @@ int GetImportanceEvent(int Pm, int Pn)
 		printf("select error : %s\n",errmsg);	
 		return -1;
 	} 
-	return 0;
+	return GetImportanceEvent_sum;
 }
 
 int GetImportanceEvent_back(void *para, int ncolumn, char **columnvalue, char **columnname)
@@ -595,14 +609,14 @@ int GetordinaryEvent(u8 Pm, u8 Pn)
 	memset(EventBuf, 0, sizeof(EventBuf));
 	if(Pm < Pn)
 	{ 
-		sprintf(sql, "select * from ordinaryEvent limit %d,%d;", Pm, Pn);
+		sprintf(sql, "select * from ordinaryEvent limit %d,%d;", Pm, Pn-Pm);
 	}
 
 	if(Pm > Pn)
 	{
 		sprintf(sql, "select * from ordinaryEvent limit 0,%d;",Pn);
 		rsl = sqlite3_exec(mpDB, sql, GetordinaryEvent_back, (void *)&GetordinaryEvent_sum, &errmsg); 
-		sprintf(sql, "select * from ordinaryEvent limit %d,80;",Pm);
+		sprintf(sql, "select * from ordinaryEvent limit %d,%d;",Pm,81-Pm);
 	}
 	
 	rsl = sqlite3_exec(mpDB, sql, GetordinaryEvent_back, (void *)&GetordinaryEvent_sum, &errmsg); 
@@ -645,7 +659,6 @@ int GetordinaryEvent_back(void *para, int ncolumn, char **columnvalue, char **co
 输    出: 无
 返    回: <0 失败， >=0 成功
 *************************************************/
-int	GetERCEvent_sum;
 int GetErcEvent(int ERC)
 {
 	int rsl;
@@ -653,7 +666,7 @@ int GetErcEvent(int ERC)
 	char *errmsg; 
 	sqlite3* mpDB = NULL;
 
-	GetERCEvent_sum = 0;
+	int GetERCEvent_sum = 0;
 	
 	mpDB  = DBopen(FILENAME);
 	if(mpDB == NULL)
@@ -739,8 +752,12 @@ int GetEventRowback(void *para, int ncolumn, char **columnvalue, char **columnna
 	{		
 		//printf("col_name:%s----> clo_value:%s\n",columnname[i],columnvalue[i]);	
 	}	
-	sscanf(columnvalue[0],"%d", (int *)&m_ErcReport[*(int *)para]);
-	//printf("m_ErcReport = %d\n",m_ErcReport[*(int *)para]);
+	//sscanf(columnvalue[0],"%d", (int *)&m_ErcReport[*(int *)para]);
+	int ret;
+	sscanf(columnvalue[0], "%d",  &ret);
+	m_ErcReport[*(int *)para] = ret;	
+	
+	printf("m_ErcReport[%d] = %d\n",*(int *)para,m_ErcReport[*(int *)para]);
 	(*(int *)para)++;
 	return 0;
 }
@@ -845,7 +862,10 @@ int GetEC1back(void *para, int ncolumn, char **columnvalue, char **columnname)
 	{		
 		//printf("col_name:%s----> clo_value:%s\n",columnname[i],columnvalue[i]);	
 	}	
-	sscanf(columnvalue[0],"%d", (int *)para);
+	//sscanf(columnvalue[0],"%d", (int *)para);
+	int ret;
+	sscanf(columnvalue[0],"%d",  &ret);
+	*(u8 *)para = ret;		
 	return 0;
 }
 
@@ -892,7 +912,10 @@ int GetEC2back(void *para, int ncolumn, char **columnvalue, char **columnname)
 	{		
 		//printf("col_name:%s----> clo_value:%s\n",columnname[i],columnvalue[i]);	
 	}	
-	sscanf(columnvalue[0],"%d", (int *)para);
+	//sscanf(columnvalue[0],"%d", (int *)para);
+	int ret;
+	sscanf(columnvalue[0],"%d",  &ret);
+	*(u8 *)para = ret;		
 	return 0;
 }
 
@@ -973,8 +996,6 @@ int UpdateEC2(u8 EC2)
 
 
 
-
-
 /*************************************************
 函 数 名: UpdatePower
 功能描述: 更新停上电事件
@@ -985,7 +1006,7 @@ int UpdateEC2(u8 EC2)
 int UpdatePower(char *data, u32 time)
 {
     int rsl;
-   	char sql[128] = {0};    
+   	char sql[512] = {0};    
 	char *errmsg; 
     sqlite3* mpDB = NULL;  
     
@@ -993,7 +1014,13 @@ int UpdatePower(char *data, u32 time)
     if(mpDB == NULL)
         return -1;
 	
-	sprintf(sql, "update ImportanceEvent set Report = 1  date=%s time=%d ;", data, time);
+	rsl = sqlite3_exec(mpDB, "update ImportanceEvent set Report = 1 where ERC=14 and time=(select max(time) from ImportanceEvent where ERC=14);", NULL, NULL, &errmsg); 
+	
+	sprintf(sql, "update ImportanceEvent set data='%s' where ERC=14 and time=(select max(time) from ImportanceEvent where ERC=14);", data);
+	//printf("data = %s\n",data);
+	rsl = sqlite3_exec(mpDB, sql, NULL, NULL, &errmsg); 
+	
+	sprintf(sql, "update ImportanceEvent set time=%d where ERC=14 and time=(select max(time) from ImportanceEvent where ERC=14);", time);
 	rsl = sqlite3_exec(mpDB, sql, NULL, NULL, &errmsg); 
 
 	DBclose(mpDB);
@@ -1003,21 +1030,9 @@ int UpdatePower(char *data, u32 time)
 		printf("select error : %s\n",errmsg);	
 		return -1;
 	} 
+	
 	return 0;			//返回重要事件计数器
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

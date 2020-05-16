@@ -78,7 +78,7 @@ u32 Hex2Bcd(u32 hex)
 
 u32 Bcd2Hex(u32 bcd)
 {
-    u32 hex;
+    u32 hex=0;
     u32 b = 1;
     
     while(bcd)
@@ -109,5 +109,43 @@ int printhexdata(void *data,int len)
 	printf("\b]\n");
 	return len;
 }
+int Str2Hex(u8 *str,u8 *hex)
+{
+	if(!str || !hex) return -1;
 
+	int i,j,len;
+	u8 tmp;
+
+	len = strlen(str);
+	for(i=0,j=0;i<len;i++)
+	{
+		if((str[0]>='0')&&(str[0]<='9'))
+		{
+			tmp += (str[i] - '0');
+		}
+		else if((str[0]>='a')&&(str[0]<='f'))
+		{
+			tmp += str[i] - 'a';
+		}
+		else if((str[0]>='A')&&(str[0]<='F'))
+		{
+			tmp += str[i] - 'A';
+		}
+		else
+		{
+			return -1;
+		}
+		if(i%2==0)
+		{
+			if(i<(len-1))
+				tmp *= 0x10;
+		}
+		else
+		{
+			hex[j] = tmp;
+			j++;
+			tmp = 0;			
+		}
+	}
+}
 

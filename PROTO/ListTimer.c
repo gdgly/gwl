@@ -47,7 +47,6 @@ static int load_timer(UTIL_TIME *ut)
 	}
 	if(0 == ListInsertTail(&ListTimer,&ut->Node))
 	{
-		printf("[timer]load timer\n");
 		return 0;
 	}
 	
@@ -78,7 +77,6 @@ int add_timer(int timeout,int period,void (*timeout_callback)(void * data),void 
 	{
 		*out_ut = ut;
 	}
-	printf("[timer]add timer ut=0x%x\n",ut);
 	if(!load_timer(ut))
 	{
 		printf("[timer]add timer success:0x%x\n",ut);
@@ -116,17 +114,16 @@ int del_timer(UTIL_TIME **ut)
  * @return
  * if a timer be deleted or addition time to a timer, adjust timer list
  */
-static int adjust_timer(UTIL_TIME * ut, time_t _time)
+static int adjust_timer(UTIL_TIME * ut)
 {
-    if(!ut||!_time)
+    if(!ut)
 	{
         return -1;
     }
 	ListRemove(&ListTimer,NULL,&ut->Node);
-    ut->out_time = time(NULL) + _time;
-	printf("[timer]adjust ut=0x%x\n",ut);
-    //  Can be optimized , insert after this Node.
-    if(!load_timer(ut))          //reinsert it
+    ut->out_time = time(NULL) + ut->persist;
+    //Can be optimized , insert after this Node.
+    if(!load_timer(ut))//reinsert it
     {
         return 0;
     }
@@ -135,26 +132,27 @@ static int adjust_timer(UTIL_TIME * ut, time_t _time)
 static int Excecute(void *Node1,void *extra)
 {
 	if(!Node1) return -1;
-	
+
 	UTIL_TIME *Timer = (UTIL_TIME*)Node1;
 	time_t now = time(NULL);
-
+	
 	if(Timer->out_time <= now)
-	{
+	{		
 		if(Timer->timeout_callback)
 		{
 			Timer->timeout_callback(Timer->cdata);
 		}
 		if(Timer->persist)
 		{
-			adjust_timer(Timer, Timer->persist);
+			adjust_timer(Timer);
 		}
 		else
 		{
 			del_timer(&Timer);
 		}
+		return 0;
 	}
-	return 0;
+	return -1;
 }
 /**
  * @brief tick

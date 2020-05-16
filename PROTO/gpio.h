@@ -174,6 +174,11 @@
 #define	NUC970_PJ2	(0x120 + 2)
 #define	NUC970_PJ3	(0x120 + 3)
 #define	NUC970_PJ4	(0x120 + 4)
+
+#define	BUZZER	NUC970_PD5
+#define MAGNET	NUC970_PG3
+#define	IO_HIGHT	1
+#define	IO_LOW	0
 /*
 typedef struct nuc970_eint_pins{
 	u32	pin;
@@ -190,6 +195,7 @@ typedef struct nuc970_eint_pins{
 int gpio_init(int num, int direction);
 int gpio_output(int num, int val);
 int gpio_input(int num);
+int getMagnetStatusValue(void);
 
 
 

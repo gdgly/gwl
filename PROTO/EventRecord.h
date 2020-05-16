@@ -1,7 +1,6 @@
 #ifndef _EVENTRECORD_H_
 #define _EVENTRECORD_H_
 
-#include <stdio.h>
 #include "Sgd_types.h"
 #include "Mrs_fw_proto376_1.h"
 
@@ -12,7 +11,8 @@
 #define IMPORTANTFILEEC 	"importanceEC.dat"
 #define EVENTRECORDSTATUS 	"EventRecordStatus.dat" 	
 
-#define flow_path_	 "/mnt/conf/Comm_flow.conf"
+#define flow_path_	 "/mnt/conf/Comm_flow.conf"			//存储流量数据
+#define ACdate_path  "/mnt/conf/AcDataCurrent.dat"		//存储电流数据
 
 
 #define EveMax 				80			//事件存储做大的数据
@@ -53,11 +53,15 @@ long get_comm_write_flow_without_lock();
 long get_csf36_Month_Commflux_threshold();
 
 long get_month_flows();
+long get_curr_day_flow();
 
 int saveconfparam(const char* confile, const char*name, long value, char delimiter);
 int getconfparam(const char* confile,const char*name, long * value, char delimiter);
 
 void load_comm_flow_month_without_lock();
+
+int EventDataInit();
+int FlowDataInit();
 
 
 

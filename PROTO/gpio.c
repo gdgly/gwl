@@ -108,5 +108,33 @@ int gpio_input(int num)
 	return value;
 }
 
-
+//*****************************************************************************
+//	函数名称: getMagnetStatusValue
+//	功能描述: 获取DRV5033状态        
+//	参数说明:
+//	int	[in]	gpio 端口号
+//	返 回 值: 
+//	0 : 被磁场干扰
+//	1 : 默认值
+//	其它为错误码  
+//*****************************************************************************
+int getMagnetStatusValue(void)
+{
+	int rs = -1;
+	static int bInitFlag = 1;
+	
+	if(bInitFlag)
+	{
+		if(gpio_init(MAGNET, GPIO_IN_PUT) < 0)
+		{
+			printf("getMagnetStatusValue gpio_init error\n");
+			rs = -1;
+			return rs;
+		}
+		bInitFlag = 0;
+	}
+	rs = gpio_input(MAGNET);
+	//printf("getMagnetStatusValue rs(%d)\n", rs);
+	return rs;
+}
 

@@ -26,9 +26,9 @@ UTIL_TIME *LedAppUt;
 
 void LedAppFlickCallBack(void *data)
 {
-	time_t now = time(NULL);
+	static int flicker = 0;
 	
-	if(now%2==LED_ON)
+	if(flicker==LED_ON)
 	{
 		gpio_output(LED_D3, LED_ON);
 	}
@@ -36,6 +36,7 @@ void LedAppFlickCallBack(void *data)
 	{
 		gpio_output(LED_D3, LED_OFF);
 	}
+	flicker = !flicker;
 }
 
 void LedAppFlicker(void)
@@ -66,6 +67,7 @@ void LedAppInit(void)
 		return;
 	}
 	gpio_output(LED_D3, LED_ON);
+//	LedAppFlicker();
 }
 
 

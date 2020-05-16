@@ -370,6 +370,24 @@ int VirtualNetLoad(const char* confile)
 	memcpy(para->VirtualNet.VirPasswd,ArrData[1],sizeof(para->VirtualNet.VirPasswd));
     return 0;
 }
+int TermUpFluxLimitLoad(const char* confile)
+{
+    if(!confile) return -1;
+
+    sTermSysInfo *para = GetCiSysInfo();
+    int i,gr;
+    char ArrData[1][30];
+    char *cParaInfo[] = 
+    {
+        "CS_F36_FLUX_LIMITOR",    ArrData[0],     ":",
+    };
+    memset(&para->FluxLimitor,0,sizeof(para->FluxLimitor));
+    memset(ArrData,0,sizeof(ArrData));
+    gr = sizeof(cParaInfo)/(sizeof(cParaInfo[0])*3);
+    if(GetFileDataGroup(confile,cParaInfo,gr)) return -1;
+    para->FluxLimitor = (u32)atoi(ArrData[0]);
+    return 0;
+}
 
 //===========================================================================
 int CircuitParaLoad(const char* confile)
@@ -385,18 +403,21 @@ int CircuitParaLoad(const char* confile)
     ret += EventParaLoad(confile);
     ret += CurLoopParaLoad(confile);
     ret += TaRateParaLoad(confile);
+	ret += TermUpFluxLimitLoad(confile);
+	ret += ConsCheInfoLoad(confile);
     return ret;
 }
 int TermParaPowerUp(const char* confile)
 {
+   printf("[TermParaPowerUp]enter !!\n");
     if(strcmp(TERM3761_PARA_CONF,confile)!=0)
     {
-		printf("[para_debug]conf file error!!\n");
+		printf("[TermParaPowerUp]conf file error!!\n");
 		return -1;
 	}
 	if(access(confile,F_OK) != 0)
 	{
-		printf("[para_debug]loss of conf file!!\n");
+		printf("[TermParaPowerUp]loss of conf file!!\n");
 		TermParaDefault();
 		return -1;
 	}
@@ -408,14 +429,14 @@ int TermParaDefault(void)
 {
 	if(access(TERM3761_PARA_CONF_INIT,F_OK)==-1)
 	{
-		printf("[para_debug]loss of default conf file!!\n");
+		printf("[TermParaDefault]:loss of default conf file!!\n");
 		return -1;
 	}
 	char tmp[200];
 
 	memset(tmp,0,sizeof(tmp));
 	snprintf(tmp, sizeof(tmp), "sudo cp -f %s %s\n",TERM3761_PARA_CONF_INIT,TERM3761_PARA_CONF);
-//	printf("sys cmd:%s\n",tmp);
+	printf("[TermParaDefault] sys cmd:%s\n",tmp);
 	system(tmp);
 	return CircuitParaLoad(TERM3761_PARA_CONF_INIT);
 }
@@ -445,8 +466,26 @@ int TermParaDefButMainSta(void)
 }
 
 
-
-
+int ConsCheInfoLoad(const char* confile)
+{
+    if(!confile) return -1;
+    
+    sTermSysInfo *para = GetCiSysInfo();
+    int i,gr;
+    char ArrData[9][30];
+    char *cParaInfo[] = 
+    {
+        "CS_F5_CONSCHEMENO",  			ArrData[0],    ":",
+        "CS_F5_CONSCHEMEPARAMETER",     ArrData[1],    ":",
+    };
+    memset(&para->MessageCon,0,sizeof(para->MessageCon));
+    memset(ArrData,0,sizeof(ArrData));
+    gr = sizeof(cParaInfo)/(sizeof(cParaInfo[0])*3);
+    if(GetFileDataGroup(confile,cParaInfo,gr)) return -1;
+	para->MessageCon.F5_ConSchemeNo = atoi(ArrData[0]);
+	para->MessageCon.F5_ConSchemeParameter = atoi(ArrData[1]); 
+	return 0;
+}
 
 
 

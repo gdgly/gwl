@@ -11,7 +11,7 @@
 #include "util.h"
 #include <errno.h>
 
-int m_MFd;
+int m_MFd = -1;
 unsigned char m_MSendBuf[MESAM_SEND_BUF_MAX_LEN];
 //unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN];
 
@@ -41,7 +41,7 @@ int MEsamDevOpen(void)
 		return -1;
 	}
 	//MY_ACE_ERROR((LM_ERROR,"TMESAMBaseClass::MEsamDevOpen open dev success!!!!\n"));
-	printf("MEsamDevOpen open dev success!!!!\n");
+	printf("MEsamDevOpen open dev(%d) success!!!!\n", m_MFd);
 	return 0;
 };
 
@@ -109,56 +109,56 @@ int MEsamDataSend(unsigned char* _MBuf,int _MBufLen)
 		}
 	}
 	*/
-	//èŠ¯ç‰‡æ‰‹å†Œ:
-	//å—äº¬å—ç‘é›†å›¢é€šä¿¡ä¸ç”¨ç”µæŠ€æœ¯åˆ†å…¬å¸ 10
-	//ä¸¥æ ¼æŒ‰ç…§æµç¨‹ä¸­å¯¹SSNä¿¡å·çš„å¤„ç†æ–¹å¼ï¼Œç¦æ­¢åœ¨æ•°æ®ä¼ è¾“ä¸­ï¼Œå°†SSNç½®é«˜
-	//	SCKæ¨èé€Ÿç‡2MHz---æœ¬ç¨‹åº1Mhz,è§ä¸Šé¢æ„é€ å‡½æ•°
-	//åœ¨SSNç½®é«˜åï¼ŒT-ESAMå°†è¿›å…¥ä½åŠŸè€—çŠ¶æ€ï¼Œé«˜ç”µå¹³ä¿æŒæ—¶é—´è‡³å°‘10Î¼sä»¥ä¸Šï¼ˆè§å›¾7ï¼‰ï¼Œæ‰èƒ½ç½®ä½ã€‚æ¥å£è®¾å¤‡å°†SSNå†æ¬¡ç½®ä½åï¼Œéœ€ç­‰å¾…50Î¼sä»¥ä¸Šæ—¶é—´ï¼ˆè§å›¾8ï¼‰ï¼Œæ‰èƒ½å¼€å§‹å‘é€æ•°æ®
-	//å‘é€æ•°æ®å­—èŠ‚ä¹‹é—´å»¶æ—¶éœ€å¤§äº15Î¼s
+	//Ğ¾Æ¬ÊÖ²á:
+	//ÄÏ¾©ÄÏÈğ¼¯ÍÅÍ¨ĞÅÓëÓÃµç¼¼Êõ·Ö¹«Ë¾ 10
+	//ÑÏ¸ñ°´ÕÕÁ÷³ÌÖĞ¶ÔSSNĞÅºÅµÄ´¦Àí·½Ê½£¬½ûÖ¹ÔÚÊı¾İ´«ÊäÖĞ£¬½«SSNÖÃ¸ß
+	//	SCKÍÆ¼öËÙÂÊ2MHz---±¾³ÌĞò1Mhz,¼ûÉÏÃæ¹¹Ôìº¯Êı
+	//ÔÚSSNÖÃ¸ßºó£¬T-ESAM½«½øÈëµÍ¹¦ºÄ×´Ì¬£¬¸ßµçÆ½±£³ÖÊ±¼äÖÁÉÙ10¦ÌsÒÔÉÏ£¨¼ûÍ¼7£©£¬²ÅÄÜÖÃµÍ¡£½Ó¿ÚÉè±¸½«SSNÔÙ´ÎÖÃµÍºó£¬ĞèµÈ´ı50¦ÌsÒÔÉÏÊ±¼ä£¨¼ûÍ¼8£©£¬²ÅÄÜ¿ªÊ¼·¢ËÍÊı¾İ
+	//·¢ËÍÊı¾İ×Ö½ÚÖ®¼äÑÓÊ±Ğè´óÓÚ15¦Ìs
 
 	struct spi_ioc_transfer tr[1];
 		memset(tr,0,sizeof(tr));
 
 		//spidev_sync->spi_async->__spi_async-->atmel_spi_transfer	
-		//åŠ å…¥é˜Ÿåˆ—list_add_tail(&msg->queue, &as->queue)æ²¡ä¼ è¾“(!as->current_transfer)è°ƒatmel_spi_next_messageå¼€å§‹ä¼ è¾“
+		//¼ÓÈë¶ÓÁĞlist_add_tail(&msg->queue, &as->queue)Ã»´«Êä(!as->current_transfer)µ÷atmel_spi_next_message¿ªÊ¼´«Êä
 
-		//atmel_spi_cleanup(æ–‡ä»¶å…³é—­æ—¶spidev_releaseè°ƒç”¨)è‹¥ä¿å­˜ä¸Šæ¬¡spiæ˜¯è¢«å…³é—­çš„è®¾å¤‡,æ¸…ä¸Šæ¬¡è®¾å¤‡æŒ‡é’ˆ,csç½®æ— æ•ˆ
-		//atmel_spi_setup(spi_add_deviceè°ƒç”¨,å¢åŠ ä»è®¾å¤‡,ä¸æ˜¯æ¥å£)è‹¥å·²æœ‰atmel_spi_device,ä¹Ÿæ¸…æ­¤æŒ‡é’ˆ,csç½®æ— æ•ˆ
+		//atmel_spi_cleanup(ÎÄ¼ş¹Ø±ÕÊ±spidev_releaseµ÷ÓÃ)Èô±£´æÉÏ´ÎspiÊÇ±»¹Ø±ÕµÄÉè±¸,ÇåÉÏ´ÎÉè±¸Ö¸Õë,csÖÃÎŞĞ§
+		//atmel_spi_setup(spi_add_deviceµ÷ÓÃ,Ôö¼Ó´ÓÉè±¸,²»ÊÇ½Ó¿Ú)ÈôÒÑÓĞatmel_spi_device,Ò²Çå´ËÖ¸Õë,csÖÃÎŞĞ§
 
-		//atmel_spi.c message->transfer			atmel_spi_next_message/atmel_spi_tasklet_func->atmel_spi_next_xfer(0é•¿åº¦ç¬¬å½’)
-		//ç¬¬ä¸€ä¸ªatmel_spi_next_messageå¼€å§‹ä¼ è¾“å¦‚æœæœ¬æ¬¡spiè®¾å¤‡ä¸æ˜¯è¯¥spiæ¥å£ä¸Šæ¬¡ç»“æŸä¼ è¾“çš„è¯,ä¸Šæ¬¡spiè®¾å¤‡ç½®csæ— æ•ˆ,æ— è®ºå¼‚åŒéƒ½æ¸…ä¿å­˜çš„ä¸Šæ¬¡è®¾å¤‡æŒ‡é’ˆ;
-		//ç›®å‰NANDFLASH/ESAMæ˜¯ä¸åŒçš„spiæ¥å£,åŒä¸€æ¥å£ä¸Šå‘èµ·ä¼ è¾“çš„spiä¸ä¼šä¸åŒ
-		//æœ¬æ¬¡spiè®¾å¤‡csç½®æœ‰æ•ˆ
+		//atmel_spi.c message->transfer			atmel_spi_next_message/atmel_spi_tasklet_func->atmel_spi_next_xfer(0³¤¶ÈµÚ¹é)
+		//µÚÒ»¸öatmel_spi_next_message¿ªÊ¼´«ÊäÈç¹û±¾´ÎspiÉè±¸²»ÊÇ¸Ãspi½Ó¿ÚÉÏ´Î½áÊø´«ÊäµÄ»°,ÉÏ´ÎspiÉè±¸ÖÃcsÎŞĞ§,ÎŞÂÛÒìÍ¬¶¼Çå±£´æµÄÉÏ´ÎÉè±¸Ö¸Õë;
+		//Ä¿Ç°NANDFLASH/ESAMÊÇ²»Í¬µÄspi½Ó¿Ú,Í¬Ò»½Ó¿ÚÉÏ·¢Æğ´«ÊäµÄspi²»»á²»Í¬
+		//±¾´ÎspiÉè±¸csÖÃÓĞĞ§
 
 		tr[0].tx_buf = (unsigned long)m_MSendBuf;
 		//tr[0].rx_buf = NULL;
 		tr[0].len = m_MSendLen;
 
 		//delay_usecs:
-		//atmel_spi_tasklet_func(dmaä¼ è¾“å®Œæˆä¸­æ–­è°ƒç”¨)ä¸­ä¼ è¾“å®Œæˆå(æ— è®ºæ”¶å‘)å»¶è¿Ÿ,
-		//cs_changeä¸º1æ—¶(æ— è®ºæ”¶å‘)ä¹Ÿç”¨ä½œcsè„‰å®½
-		//å‘é€å‰å»¶æ—¶:
-		//atmel_spi_next_xfer_pio(å†…æ ¸configä¸­dmaé…ç½®ä¸ºå…³é—­æˆ–dmaé”™è¯¯æ—¶è°ƒç”¨)ä¸­å‘é€æ¯å­—èŠ‚å‰å»¶æ—¶
-		//atmel_spi_pump_pio_dataå‘é€æ¯å­—èŠ‚å‰å»¶æ—¶(ä¸­æ–­å¤„ç†ç¨‹åºRDRFæ—¶è°ƒç”¨,æ¥æ”¶/å‘é€å­—èŠ‚)
-		//atmel_spi_next_xfer_dmaæ¯æ¬¡éƒ½æ—¢å¯åŠ¨å‘é€dmaä¹Ÿå¯åŠ¨æ¥æ”¶dma,å¦‚æœæ˜¯å‘é€,å‘é€å¼€å§‹å‘é€dmaå‰å»¶æ—¶
-		//	(æ¥æ”¶dmaå¼€å§‹å‰ä¸å»¶æ—¶)
-		//xferçš„tx_buf/rx_buf(åªæœ‰ä¸€ä¸ªéç©º)ç”¨çš„æ˜¯4096çš„struct spidev_data* spidevçš„bufferå†…éƒ¨ç¼“å†²åŒº(PAGE_SIZE),ç©ºçš„é‚£ä¸ªç”¨
-		//struct atmel_spi	*asçš„buffer_dmaå†…éƒ¨ç¼“å†²åŒº(PAGE_SIZE),dmaé•¿åº¦æ”¶å‘éƒ½æ˜¯xfer->len
-		//æ”¶æ—¶ä¼šå…ˆæ¸…0å‘dmaç¼“å†²(å³æ¥æ”¶æœŸé—´MOSIä¿æŒ0)
+		//atmel_spi_tasklet_func(dma´«ÊäÍê³ÉÖĞ¶Ïµ÷ÓÃ)ÖĞ´«ÊäÍê³Éºó(ÎŞÂÛÊÕ·¢)ÑÓ³Ù,
+		//cs_changeÎª1Ê±(ÎŞÂÛÊÕ·¢)Ò²ÓÃ×÷csÂö¿í
+		//·¢ËÍÇ°ÑÓÊ±:
+		//atmel_spi_next_xfer_pio(ÄÚºËconfigÖĞdmaÅäÖÃÎª¹Ø±Õ»òdma´íÎóÊ±µ÷ÓÃ)ÖĞ·¢ËÍÃ¿×Ö½ÚÇ°ÑÓÊ±
+		//atmel_spi_pump_pio_data·¢ËÍÃ¿×Ö½ÚÇ°ÑÓÊ±(ÖĞ¶Ï´¦Àí³ÌĞòRDRFÊ±µ÷ÓÃ,½ÓÊÕ/·¢ËÍ×Ö½Ú)
+		//atmel_spi_next_xfer_dmaÃ¿´Î¶¼¼ÈÆô¶¯·¢ËÍdmaÒ²Æô¶¯½ÓÊÕdma,Èç¹ûÊÇ·¢ËÍ,·¢ËÍ¿ªÊ¼·¢ËÍdmaÇ°ÑÓÊ±
+		//	(½ÓÊÕdma¿ªÊ¼Ç°²»ÑÓÊ±)
+		//xferµÄtx_buf/rx_buf(Ö»ÓĞÒ»¸ö·Ç¿Õ)ÓÃµÄÊÇ4096µÄstruct spidev_data* spidevµÄbufferÄÚ²¿»º³åÇø(PAGE_SIZE),¿ÕµÄÄÇ¸öÓÃ
+		//struct atmel_spi	*asµÄbuffer_dmaÄÚ²¿»º³åÇø(PAGE_SIZE),dma³¤¶ÈÊÕ·¢¶¼ÊÇxfer->len
+		//ÊÕÊ±»áÏÈÇå0·¢dma»º³å(¼´½ÓÊÕÆÚ¼äMOSI±£³Ö0)
 
 		tr[0].delay_usecs = 5;	//original is 100	
 
 		//tr[0].speed_hz = speed;
 		//tr[0].bits_per_word = bits;
 
-		//cs_changeä¸º1:atmel_spi_tasklet_funcä¸­å¤štransferæ—¶éæœ€åä¸€ä¸ªtransferå®Œæˆæ—¶ç»§ç»­ä¼ è¾“å‰è„‰å†²ä¸€æ¬¡cs(å…ˆæ— æ•ˆå†æœ‰æ•ˆ,å®½åº¦ä¸ºdelay_usecs,è‡³å°‘1us),
-		//æœ€åä¸€ä¸ªtransferå®Œæˆä¸”æ— é”™æ—¶åˆ™ä¿æŒcsä¸å˜,å¹¶è®°ä½æ­¤spiè®¾å¤‡
-		//cs_changeä¸º0:atmel_spi_tasklet_funcä¸­å¤štransferæ—¶éæœ€åä¸€ä¸ªtransferå‰ä¸æ”¹å˜cs,
-		//æœ€åä¸€ä¸ªtransferå®Œæˆæˆ–å‡ºé”™æ—¶csç½®æ— æ•ˆ
+		//cs_changeÎª1:atmel_spi_tasklet_funcÖĞ¶àtransferÊ±·Ç×îºóÒ»¸ötransferÍê³ÉÊ±¼ÌĞø´«ÊäÇ°Âö³åÒ»´Îcs(ÏÈÎŞĞ§ÔÙÓĞĞ§,¿í¶ÈÎªdelay_usecs,ÖÁÉÙ1us),
+		//×îºóÒ»¸ötransferÍê³ÉÇÒÎŞ´íÊ±Ôò±£³Öcs²»±ä,²¢¼Ç×¡´ËspiÉè±¸
+		//cs_changeÎª0:atmel_spi_tasklet_funcÖĞ¶àtransferÊ±·Ç×îºóÒ»¸ötransferÇ°²»¸Ä±äcs,
+		//×îºóÒ»¸ötransferÍê³É»ò³ö´íÊ±csÖÃÎŞĞ§
 		//tr[0].cs_change = 0;	
 
-		//1æ¬¡ioctlè°ƒç”¨spidev.cå½¢æˆä¸€ä¸ªmessage,é‡Œé¢å¯æœ‰å¤šä¸ªtransfer,spidev_syncåŒæ­¥ä¼ è¾“æ“ä½œ(ç­‰å¾…ä¼ è¾“å®Œæˆ)
-						//spidev_syncè¿”å›actual_length
+		//1´Îioctlµ÷ÓÃspidev.cĞÎ³ÉÒ»¸ömessage,ÀïÃæ¿ÉÓĞ¶à¸ötransfer,spidev_syncÍ¬²½´«Êä²Ù×÷(µÈ´ı´«ÊäÍê³É)
+						//spidev_sync·µ»Øactual_length
 
 		_rs = ioctl(m_MFd, SPI_IOC_MESSAGE(1), tr);
 		if (_rs < 1)
@@ -180,7 +180,7 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 	//int _rs = 0;
 	int _num = 0;
 	int _bytesCount = 0;
-	int m_MRecvLen = 0;//å¸§é•¿åº¦
+	int m_MRecvLen = 0;//Ö¡³¤¶È
 	int _len =0;
 	int _cs = 0;
 #ifndef ACE_WIN32
@@ -203,7 +203,7 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 	
 		struct spi_ioc_transfer tr[1];
 		memset(tr,0x00,sizeof(struct spi_ioc_transfer));
-		tr[0].tx_buf = NULL;
+		tr[0].tx_buf = 0;
 		tr[0].rx_buf = (unsigned long)_Buf;
 		
 		//tr[0].delay_usecs = 0;
@@ -212,7 +212,7 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 		tr[0].cs_change = 1;//change cs between xfer in one message(one ioctl call) and don't change cs after whole message done
 		
 		mymsleep(10);
-#define ESAM_FRAME_BREAK 3//å‚è§TESAMæ–‡æ¡£
+#define ESAM_FRAME_BREAK 3//²Î¼ûTESAMÎÄµµ
 	//if (_rs > 0)
 	{
 		int frame_got_part = 0;
@@ -223,10 +223,10 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 			//memset((void*)tr[0].rx_buf,0,tr[0].len);
 			//usleep(10);
 			tr[0].len = _bytesCount;
-			//SPI_IOC_MESSAGE(1)çš„1è¡¨ç¤ºspi_ioc_transferçš„æ•°é‡
+			//SPI_IOC_MESSAGE(1)µÄ1±íÊ¾spi_ioc_transferµÄÊıÁ¿
 			int ret = ioctl(m_MFd, SPI_IOC_MESSAGE(1), tr);
 			//printf("\nMEsamDataRecv, MEsamDataRecv, ret= %d\n", ret);
-			if (ret < _bytesCount)//ä¸åº”è¯¥å‘ç”Ÿ,ç‰‡é€‰æœ‰æ•ˆåspié‡‡æ ·MISOæ€»æ”¶åˆ°ä¸œè¥¿
+			if (ret < _bytesCount)//²»Ó¦¸Ã·¢Éú,Æ¬Ñ¡ÓĞĞ§ºóspi²ÉÑùMISO×ÜÊÕµ½¶«Î÷
 			{
 				//MY_ACE_ERROR((LM_ERROR,"TMESAMBaseClass::MEsamDataRecv failed!!!\n"));
 				++_num;
@@ -240,7 +240,7 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 				if (_num > 100)
 				{
 					_num = 0;
-					mymsleep(0);//å¹¿æ’­å’Œç»„åœ°å€æµ‹è¯•ä¸ªåˆ«ä¸åˆæ ¼(è®¾ç½®ç»„åœ°å€,å¹¿æ’­åœ°å€è®¾ç½®å‚æ•°)
+					mymsleep(0);//¹ã²¥ºÍ×éµØÖ·²âÊÔ¸ö±ğ²»ºÏ¸ñ(ÉèÖÃ×éµØÖ·,¹ã²¥µØÖ·ÉèÖÃ²ÎÊı)
 					//ACE_OS::sleep(0);
 				}
 				continue;
@@ -334,14 +334,14 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 								//MY_ACE_ERROR((LM_ERROR,"now deactive cs!!!\n"));
 								printf("now deactive cs!!!\n");
 								//cs deactivate
-								tr[0].delay_usecs = 0;//å†…æ ¸ä¸å»¶æ—¶
+								tr[0].delay_usecs = 0;//ÄÚºË²»ÑÓÊ±
 								tr[0].cs_change = 0;
 								tr[0].len = 1;//if 0, driver will not return
-								tr[0].tx_buf = NULL;
+								tr[0].tx_buf = 0;
 								tr[0].rx_buf = (unsigned long)&_i;
 								ioctl(m_MFd, SPI_IOC_MESSAGE(1), tr);
 
-								mymsleep(1);//ç”¨æˆ·æ€å»¶æ—¶(csæ— æ•ˆæŒç»­ä¸€ä¼š)
+								mymsleep(1);//ÓÃ»§Ì¬ÑÓÊ±(csÎŞĞ§³ÖĞøÒ»»á)
 
 
 								//return 0;
@@ -396,12 +396,12 @@ int MEsamDataRecv(int _WakeDt, unsigned char m_MRecvBuf[MESAM_RECV_BUF_MAX_LEN])
 		m_MRecvLen = 0;
 		//deactivate cs
 		tr[0].cs_change = 0;
-		tr[0].delay_usecs = 0;//å†…æ ¸ä¸å»¶æ—¶
+		tr[0].delay_usecs = 0;//ÄÚºË²»ÑÓÊ±
 		tr[0].len = 1;
-		tr[0].tx_buf = NULL;
+		tr[0].tx_buf = 0;
 		tr[0].rx_buf = (unsigned long)&frame_got_part;
 		ioctl(m_MFd, SPI_IOC_MESSAGE(1), tr);
-		mymsleep(1);//ç”¨æˆ·æ€å»¶æ—¶(csæ— æ•ˆæŒç»­ä¸€ä¼š)
+		mymsleep(1);//ÓÃ»§Ì¬ÑÓÊ±(csÎŞĞ§³ÖĞøÒ»»á)
 		//MY_ACE_ERROR((LM_ERROR, "\nTMESAMBaseClass::MEsamDataRecv fail total %d phrase %d!!!",total,phrase));
 		printf("MEsamDataRecv fail total %d phrase %d!!!", total,phrase);
 
@@ -417,14 +417,14 @@ int MEsamParaSet(void)
 	unsigned int m_EsamSpeed = 1*1000*1000;//1Mhz
 	int	ret = 0;
 #ifndef ACE_WIN32
-	if ((ret = ioctl(m_MFd,SPI_IOC_WR_MODE,&m_EsamMode))!=0)	//å†™æ¨¡å¼:3
+	if ((ret = ioctl(m_MFd,SPI_IOC_WR_MODE,&m_EsamMode))!=0)	//Ğ´Ä£Ê½:3
 	{
 		//#ifdef MESAM_CLASS_DEBUG
 		printf("TMESAMBaseClass::MEsamParaSet error (SPI_IOC_WR_MODE) ret =%d\n", ret);
 		//#endif
 		return -1;
 	}
-	if ((ret = ioctl(m_MFd,SPI_IOC_WR_BITS_PER_WORD,&m_EsamBits))!=0)	//å†™ æ¯å­—å¤šå°‘ä½:8
+	if ((ret = ioctl(m_MFd,SPI_IOC_WR_BITS_PER_WORD,&m_EsamBits))!=0)	//Ğ´ Ã¿×Ö¶àÉÙÎ»:8
 	{
 		//#ifdef MESAM_CLASS_DEBUG
 		printf("TMESAMBaseClass::MEsamParaSet error (SPI_IOC_WR_BITS_PER_WORD) ret =%d\n", ret);
@@ -432,7 +432,7 @@ int MEsamParaSet(void)
 		return -1;
 	}
 
-	if ((ret = ioctl(m_MFd,SPI_IOC_WR_MAX_SPEED_HZ,&m_EsamSpeed))!=0)	//å†™æœ€å¤§é€Ÿç‡1Mhz
+	if ((ret = ioctl(m_MFd,SPI_IOC_WR_MAX_SPEED_HZ,&m_EsamSpeed))!=0)	//Ğ´×î´óËÙÂÊ1Mhz
 	{
 		//#ifdef MESAM_CLASS_DEBUG
 		printf("TMESAMBaseClass::MEsamParaSet error (SPI_IOC_WR_MAX_SPEED_HZ) ret =%d\n", ret);

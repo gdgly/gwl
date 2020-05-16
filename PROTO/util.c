@@ -205,7 +205,7 @@ int BitReverse(unsigned char *srcData, unsigned int srcSize, unsigned char *dest
 {
 	int i = 0;
 
-	if ((NULL == srcSize) || (NULL == destData))
+	if ((0 == srcSize) || (NULL == destData))
 	{
 		return -1;
 	}
@@ -233,7 +233,7 @@ int BitReverse(unsigned char *srcData, unsigned int srcSize, unsigned char *dest
 unsigned char mrsToolsCalcCheckSum2(unsigned char* ptr, int len)
 {
     unsigned char CheckSum = 0;
-#if debug_info
+#if 0//debug_info
 	int i = 0;
 	printf("total(%d):", len);
 	for (i = 0; i < len ; i++)

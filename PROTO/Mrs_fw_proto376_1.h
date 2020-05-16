@@ -64,6 +64,21 @@
 
 
 /******************数据格式*******************/
+
+
+
+typedef enum
+{
+	CIR_NORMAL = 0,
+	CIR_SEC_SHORTCUT = 1,
+	CIR_SEC_BREAK = 2,
+	CIR_FIR_SHORTCUT = 3,
+	CIR_TA_RATE_CHG = 4,
+	CIR_RECTIFIER = 6,
+}eCircuitStatus;
+
+
+
 typedef struct
 {
     u8 sec;
@@ -329,7 +344,7 @@ typedef enum{
 	ERR_VERIFY,				// 校验错误
 	ERR_NO_INFO,			// 信息类不存在
 	ERR_FORMAT,				// 格式错误
-}GDW376_1_ERR_TYPE;
+}__attribute__((packed))GDW376_1_ERR_TYPE;
 
 
 //LINE144
@@ -337,18 +352,18 @@ typedef struct stFrame13761LenSType
 {
 	uint16_t m_pid : 2;
 	uint16_t m_len : 14;
-}stFrame13761LenSType;
+}__attribute__((packed))stFrame13761LenSType;
 
 typedef union ULCLenUnType
 { 
 	stFrame13761LenSType len_s;
 	uint16_t value;
-}unLenUnType;
+}__attribute__((packed))unLenUnType;
 	
 typedef struct stFrame13761Len
 {
 	unLenUnType len_un;
-}stFrame13761Len;
+}__attribute__((packed))stFrame13761Len;
 //LINE157
 
 //LINE158
@@ -359,7 +374,7 @@ typedef struct stFrame13761ActSType
 	uint8_t fcb : 1;
 	uint8_t prm : 1;
 	uint8_t dir : 1;
-}stFrame13761ActSType;
+}__attribute__((packed))stFrame13761ActSType;
 
 typedef struct stFrame13761RespSType
 {
@@ -368,26 +383,26 @@ typedef struct stFrame13761RespSType
 	uint8_t acd : 1;				//请求访问位
 	uint8_t prm : 1;				//启动标志
 	uint8_t dir : 1;				//传输方向
-}stFrame13761RespSType;		
+}__attribute__((packed))stFrame13761RespSType;		
 
 typedef union unFrame13761CtrlType{
 	stFrame13761ActSType act_s;
 	stFrame13761RespSType resp_s;
 	uint8_t value;
-}unFrame13761CtrlType;
+}__attribute__((packed))unFrame13761CtrlType;
 //LINE179
 
 typedef union stFrame13761CtrlType
 {
 	unFrame13761CtrlType control_un;
-}stFrame13761CtrlType;
+}__attribute__((packed))stFrame13761CtrlType;
 
 //LINE184
 typedef struct stFrame13761MaSType
 {
 	uint8_t group : 1;
 	uint8_t msta : 7;
-}stFrame13761MaSType;
+}__attribute__((packed))stFrame13761MaSType;
 
 typedef union 
 {
@@ -412,13 +427,13 @@ typedef struct stFrame13761AppSeqType
 	uint8_t fin : 1;
 	uint8_t fir : 1;
 	uint8_t tpv : 1;
-}stFrame13761AppSeqType;
+}__attribute__((packed))stFrame13761AppSeqType;
 typedef struct stFrame13761UserDataType
 {
 	uint8_t afn;
 	stFrame13761AppSeqType appseq;
 	uint8_t data[0];
-}stFrame13761UserDataType;
+}__attribute__((packed))stFrame13761UserDataType;
 //217
 
 //帧头
@@ -440,7 +455,7 @@ typedef struct stFrame13761Tail
 {
 	uint8_t check_sum;
 	uint8_t tail;
-}stFrame13761Tail;
+}__attribute__((packed))stFrame13761Tail;
 
 //数据格式
 
@@ -453,7 +468,7 @@ typedef struct StDataFormat16
 	uint8_t minute; //BCD
 	uint8_t hour;   //BCD
 	uint8_t day;    //BCD
-}StDataFormat16;
+}__attribute__((packed))StDataFormat16;
 
 
 //DA、DT
@@ -461,51 +476,51 @@ typedef struct stDA	//Pn
 {
 	uint8_t DA1;
 	uint8_t DA2;
-}stDA;
+}__attribute__((packed))stDA;
 
 typedef struct stDT	//Fn
 {
 	uint8_t DT1;
 	uint8_t DT2;
-}stDT;
+}__attribute__((packed))stDT;
 
 typedef struct stDataDI
 {
 	stDA  DA;
 	stDT  DT;
-}stDataDI;
+}__attribute__((packed))stDataDI;
 
 typedef struct AppAuxEC               	//事件计数器EC（上行）
 {
 	uint8_t AppAuxEC1;           		//重要事件计数器EC1
 	uint8_t AppAuxEC2;          	 	//一般事件计数器EC2
-}AppAuxEC;
+}__attribute__((packed))AppAuxEC;
 
 
 //附加信息域可由消息认证码字段PW、事件计数器EC、时间标签Tp
 typedef struct AppAuxPwd				//附加信息域
 {
 	uint8_t  appAuxPw[16];				//消息认证码字段PW（下行）
-}AppAuxPwd;
+}__attribute__((packed))AppAuxPwd;
 
 typedef struct AppAuxTp	                //附加信息时间标签Tp
 {
 	uint8_t       AppAuxTpPFC;      	//启动帧帧序号计数器PFC
 	StDataFormat16 AppAuxTpDate;		//启动帧发送时标（秒分时日）
 	uint8_t       AppAuxTpDelay;   		//允许发送传输延时时间,分钟,0表示不做超时判断
-}AppAuxTp;
+}__attribute__((packed))AppAuxTp;
 
 typedef struct AppAuxUp					//附加信息域
 {
 	AppAuxEC appAuxEC;					//事件计数器EC（上行）
 	AppAuxTp appAuxTp;					//附加信息时间标签Tp
-}AppAuxUp;
+}__attribute__((packed))AppAuxUp;
 
 typedef struct AppAuxDown
 {
 	AppAuxPwd appAuxPwd;
 	AppAuxTp  appAuxTp;					//附加信息时间标签Tp
-}AppAuxDown;
+}__attribute__((packed))AppAuxDown;
 
 
 
@@ -516,13 +531,13 @@ typedef  struct st_IP
 	uint8_t IP_s2;
 	uint8_t IP_s3;
 	uint8_t IP_s4;
-}st_IP;
+}__attribute__((packed))st_IP;
 
 typedef  union U_IP
 {
 	uint32_t IP;
 	st_IP st_IP;
-}U_IP;
+}__attribute__((packed))U_IP;
 
 
 
@@ -530,7 +545,7 @@ typedef  union U_IP
 
 
 //BCD码
-typedef struct stTime
+typedef struct
 {
 	u8 sec;
 	u8 min;
@@ -539,13 +554,13 @@ typedef struct stTime
 	u8 month:5;
 	u8 week:3;
 	u8 year;
-}stTime;
+}__attribute__((packed))stTime;
 
 //F3终端日历时钟
-typedef struct stTermTime
+typedef struct
 {
 	stTime time;//日历时钟
-}stTermTime;
+}__attribute__((packed))stTermTime;
 
 
 
@@ -556,11 +571,11 @@ F9	终端事件记录配置设置	p0
 事件记录有效标志位	BS64	8
 事件重要性等级标志位	BS64	8
 ------------------------------------------------*/
-typedef struct  TermEventRecordSet
+typedef struct
 {
 	u8 CS_F9_EventRecordValidFlag[8];
 	u8 CS_F9_EventRatingFlag[8];
-}TermEventRecordSet;
+}__attribute__((packed))TermEventRecordSet;
 
 
 
@@ -725,12 +740,12 @@ typedef struct
     uint8_t mode:2;
     uint8_t rev1:1;
     uint8_t TcpUdp:1;
-}sTermMode;
+}__attribute__((packed))sTermMode;
 typedef union
 {
     sTermMode bMode;
     uint8_t mode;
-}uTermMode;
+}__attribute__((packed))uTermMode;
 typedef struct
 {
 	uTermMode TermMode;
@@ -739,6 +754,17 @@ typedef struct
     uint8_t MaxIdleTime;//min
     uint8_t TimeSpan[3];//every bit indicates one hour of allow sign in flag
 }__attribute__((packed))sTermWorkWaysUpComm;
+
+
+
+//F5	终端消息认证参数设置
+typedef struct  
+{
+	u8   F5_ConSchemeNo; 			//消息认证方案号
+	u16  F5_ConSchemeParameter;	//消息认证方案参数
+}__attribute__((packed))TermMessageConParameterSet;
+
+
 
 #define MAX_USERLEN     20
 #define MAX_PASSWDLEN   20
@@ -763,7 +789,7 @@ typedef struct
 	u16 districtCode;							//行政区码
 	u16 termAddr;								//终端地址
 	//u8 a3;
-}MODLE_ADDR_STRU;
+}__attribute__((packed))MODLE_ADDR_STRU;
 
 
 //F153电流回路使能参数
@@ -790,7 +816,7 @@ typedef struct
 {
 	unsigned char VirUser[32];
 	unsigned char VirPasswd[32];
-}sVirtualNet;
+}__attribute__((packed))sVirtualNet;
 
 
 //巡检仪设备系统信息
@@ -800,14 +826,14 @@ typedef struct
 	stMainStationIPPort MainStationIPPort;		//主站ip/port	
 	MODLE_ADDR_STRU 	usModleAddr;			//终端逻辑地址
 	stTermUpCommuPara  	UpCommuPara; 			//上行通信参数
-}CIRCUIT_SYSTEM_INFO_STRU;  
+}__attribute__((packed))CIRCUIT_SYSTEM_INFO_STRU;  
 
 
 typedef struct
 {
 	CIRCUIT_SYSTEM_INFO_STRU parm;
 	u8 enable_flag;
-}NV_CHARGE_SYSTEM_INFO;
+}__attribute__((packed))NV_CHARGE_SYSTEM_INFO;
 
 
 //AFN00的返回帧数据域
@@ -816,7 +842,7 @@ typedef struct stError
 	u8 afn;				//要被确认的报文的 AFN	
 	u8 Di[4];			//被确认的数据单元标识 1  
 	u8 err;				//出错否认代码  0正确、1其他错误、表地址重复
-}stError;
+}__attribute__((packed))stError;
 
 
 
@@ -825,7 +851,7 @@ typedef struct stUpflag
 {
 	u8 signAck;			//登录回复
 	u8 heatAck;			//心跳回复
-}stUpflag;
+}__attribute__((packed))stUpflag;
 
 
 
@@ -1029,7 +1055,7 @@ typedef struct
     SJGS_15 time;        //参数更新时间
     u8  MstAddr;         //启动站地址
     //u8  Num;       	 //数据单元标识符个数
-	u8 *uniundata;		 //数据单元标识符												//看怎么定义todo
+	u8 uniundata[4];		 //数据单元标识符												//看怎么定义todo
 }__attribute__((packed))stru_sjjl_ERC3;
 
 typedef struct
@@ -1042,11 +1068,30 @@ typedef struct
 
 
 
+#define STAGE_AREA_POWER_OFF 1
 //ERC14：终端停/上电事件
 typedef struct
 {
     u8 ERCcode;          	//事件代码ERC
     u8 Le;               	//事件长度
+#ifdef STAGE_AREA_POWER_OFF
+	union
+	{
+		struct
+		{
+			#if(0) //ACE_BYTE_ORDER != ACE_LITTLE_ENDIAN
+						u8 reserv:6,
+								EventEnable:1, //1 事件有效，0 事件无效
+								EventNormal:1; //1 事件正常，0 事件异常
+			#else
+						u8 EventNormal:1,  //1 事件正常，0 事件异常
+								EventEnable:1,  //1 事件有效，0 事件无效
+								reserv:6;
+			#endif
+		};
+		u8 attrFlag;//属性标志
+	};
+#endif
     SJGS_15 offtime;        //停电时间
     SJGS_15 ontime;         //上电时间     
 }__attribute__((packed))stru_sjjl_ERC14;
@@ -1130,8 +1175,14 @@ typedef struct
 	u8 ERCcode;             //事件代码ERC
     u8 Le;                  //事件长度
 	SJGS_15 time;           //发生时间
-	u8 mp[2];			    //测量点号
-	u8 flag;				//异常标识
+	u16 pn:12,
+		reserve1:3,
+		ss:1;			    //测量点号
+	u8  A:1,
+	    B:1,
+	    C:1,
+	    reserve2:2,
+		extype:3;				//异常标识  
 }__attribute__((packed))stru_sjjl_ERC34;
 
 typedef struct
@@ -1204,7 +1255,7 @@ typedef struct
 	u8 Protocol_version[4];			//协议版本号
 	u8 hardware_ver[4];				//硬件版本号
 	SJGS_20 hardware_release_time;	//发布日期,bcd码日，月，年				A.20
-}stTermVerInfo;
+}__attribute__((packed))stTermVerInfo;
 
 
 //F9远程通信模块版本信息
@@ -1217,7 +1268,7 @@ typedef struct
 	u8 hardware_ver[4];				//硬件版本号
 	SJGS_20 hardware_release_time;	//发布日期,bcd码日，月，年				A.20
 	u8 ICCID[20];					//SIM卡ICCID
-}RemoteVerInfo;
+}__attribute__((packed))RemoteVerInfo;
 
 
 
@@ -1239,7 +1290,7 @@ typedef struct{
 	u8 softVer[4];
 	volatile u8 crc_error;
 	volatile u8 crc_error_cnt;
-}stRepeatUpgrade;
+}__attribute__((packed))stRepeatUpgrade;
 
 typedef struct
 {
@@ -1249,7 +1300,7 @@ typedef struct
 	volatile u16 updatasize;//单位:k
 	volatile u32 total_size;
 	u8  fileHead[16];
-}NV_UPDATA_FILE_FLAG;
+}__attribute__((packed))NV_UPDATA_FILE_FLAG;
 
 
 typedef struct stFlieTransmit
@@ -1261,7 +1312,7 @@ typedef struct stFlieTransmit
 	u32 DI;              //第i段表示从0----Num-1
 	u16 dataLen;		//第i段的长度LF
 	u8 data[0];			//和LF对应的数据内容
-}stFlieTransmit;
+}__attribute__((packed))stFlieTransmit;
 
 
 

@@ -27,27 +27,34 @@
 unsigned char mainStatRandom4[MAIN_STATION_RANDOM_SIZE] = {0};		//R4
 unsigned char mainStatRandom4Reverse[MAIN_STATION_RANDOM_SIZE] = {0};		//~R4
 unsigned char ESAMID[8] = {0};
+unsigned char BaudMac[4] = {0};
 extern int m_MFd;
-extern int	serial_fd;
+int	serial_fd = -1;
 
-int OpenTaUartPort(int fd,char* port)  
+int OpenTaUartPort(char* port)  
 {  
-     
-    fd = open( port, O_RDWR|O_NOCTTY|O_NDELAY);  
-    if (-1 == fd)  
+	if (serial_fd >= 0)
+	{
+		close(serial_fd);
+		serial_fd = -1;
+	}  
+	
+    serial_fd = open( port, O_RDWR|O_NOCTTY|O_NDELAY);  
+	
+    if (-1 == serial_fd)  
     {  
-        perror("Can't Open Serial Port");  
+        perror("OpenTaUartPort: failed\n");  
         return(-1);  
     }  
     //恢复串口为阻塞状态                                 
-    if(fcntl(fd, F_SETFL, 0) < 0)  
+    if(fcntl(serial_fd, F_SETFL, 0) < 0)  
     {  
         printf("fcntl failed!\n");  
         return(-1);  
     }       
     else  
     {  
-        printf("fcntl=%d\n",fcntl(fd, F_SETFL,0));  
+        printf("fcntl=%d\n",fcntl(serial_fd, F_SETFL,0));  
     }  
     //测试是否为终端设备      
     if(0 == isatty(STDIN_FILENO))  
@@ -59,9 +66,10 @@ int OpenTaUartPort(int fd,char* port)
     {  
         printf("isatty success!\n");  
     }                
-    printf("fd->open=%d\n",fd);  
-
-    return fd;  
+	
+	printf("OpenTaUartPort open dev(%d) success!!!!\n", serial_fd);
+	return 0;
+    //return fd;  
 }  
 
 
@@ -71,11 +79,15 @@ int OpenTaUartPort(int fd,char* port)
 * 入口参数：fd    :文件描述符     port :串口号(ttyS0,ttyS1,ttyS2)
 * 出口参数：void
 *******************************************************************/   
-void CloseTaUartPort(int fd)  
+int CloseTaUartPort(void)  
 {  
-    close(fd);  
-}  
-
+	if(serial_fd >= 0)
+	{
+		close(serial_fd);  
+	}
+	serial_fd = -1;
+	return 0;
+}
 
 /*******************************************************************
 * 名称：UART0_Set
@@ -88,7 +100,7 @@ void CloseTaUartPort(int fd)
 *           parity     效验类型 取值为N,E,O,,S
 *出口参数：正确返回为1，错误返回为0
 *******************************************************************/  
-int ComTaUart_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int parity)  
+int ComTaUart_Set(int speed,int flow_ctrl,int databits,int stopbits,int parity)  
 {  
      
     int   i;  
@@ -96,15 +108,17 @@ int ComTaUart_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int p
     int   speed_arr[] = {  B115200, B19200, B9600, B4800, B2400, B1200, B300};  
     int   name_arr[] = { 115200,  19200,  9600,  4800,  2400,  1200,  300};  
            
-    struct termios options;  
+    struct termios options; 
+	memset(&options, 0, sizeof(struct termios));
      
     /*tcgetattr(fd,&options)得到与fd指向对象的相关参数，并将它们保存于options,该函数还可以测试配置是否正确，该串口是否可用等。若调用成功，函数返回值为0，若调用失败，函数返回值为1.
     */  
-    if( tcgetattr( fd,&options)  !=  0)  
+    if( tcgetattr( serial_fd,&options)  !=  0)  
     {  
         perror("SetupSerial 1");      
         return(-1);   
     }  
+	cfmakeraw(&options);
     
     //设置串口输入波特率和输出波特率  
     for ( i= 0;  i < sizeof(speed_arr) / sizeof(int);  i++)  
@@ -208,10 +222,10 @@ int ComTaUart_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int p
     options.c_cc[VMIN] = 1; /* 读取字符的最少个数为1 */  
      
     //如果发生数据溢出，接收数据，但是不再读取 刷新收到的数据但是不读  
-    tcflush(fd,TCIFLUSH);  
+    tcflush(serial_fd,TCIFLUSH);  
      
     //激活配置 (将修改后的termios数据设置到串口中）  
-    if (tcsetattr(fd,TCSANOW,&options) != 0)    
+    if (tcsetattr(serial_fd,TCSANOW,&options) != 0)    
     {  
         perror("com set error!\n");    
         return (-1);   
@@ -244,11 +258,11 @@ int ComTaUart_Recv(int serial_fd, char *rcv_buf,int data_len)
      
     //使用select实现串口的多路通信  
     fs_sel = select(serial_fd+1,&fs_read,NULL,NULL,&time);  
-    printf("fs_sel = %d\n",fs_sel);  
+    //printf("fs_sel = %d\n",fs_sel);  
     if(fs_sel)  
     {  
         len = read(serial_fd,rcv_buf,data_len);  
-        printf("I am right!(version1.2) len = %d fs_sel = %d\n",len,fs_sel);  
+        printf("ComTaUart_Recv: len = %d fs_sel = %d\n",len,fs_sel);  
         return len;  
     }  
     else if(fs_sel == 0)  //timeout
@@ -258,7 +272,7 @@ int ComTaUart_Recv(int serial_fd, char *rcv_buf,int data_len)
     }    
 	else
 	{
-		printf("Sorry,I am wrong!");  
+		printf("ComTaUart_Recv failed!\n");  
 		return -1;  
 	}
 }  
@@ -274,8 +288,10 @@ int ComTaUart_Recv(int serial_fd, char *rcv_buf,int data_len)
 int ComTaUart_Send(int fd, char *send_buf,int data_len)  
 {  
     int len = 0;  
-     
-    len = write(fd,send_buf,data_len);  
+	tcflush(fd,TCIOFLUSH);
+	printf("ComTaUart_Send before write len(%d)/data_len(%d)\n", len, data_len);
+    len = write(fd,send_buf,data_len); 
+	printf("ComTaUart_Send after write len(%d)/data_len(%d)\n", len, data_len);
     if (len == data_len )  
     {  
     	int i;
@@ -364,7 +380,7 @@ int TerminalCtAuthenticate(void)
 	//校验和 + 结束符 + 帧长度
 	_MSendFrame[_MSendFramePos++] = GetSum8(_MSendFrame, 26);
 	_MSendFrame[_MSendFramePos++] = 0x16;
-#if debug_info
+#if 0//debug_info
 	printf("_MSendFrame:");
 	for (i = 0;i < _MSendFramePos ; i++)
 	{
@@ -376,7 +392,7 @@ int TerminalCtAuthenticate(void)
 	Array_Mirror(_MSendFrame + 10, 4);
 	Array_Mirror(_MSendFrame + 14, 4);
 	Array_Mirror(_MSendFrame + 18, 8);
-#if debug_info
+#if 0//debug_info
 	printf("_MSendFrame Reverse:");
 	for (i = 0;i < _MSendFramePos ; i++)
 	{
@@ -384,17 +400,21 @@ int TerminalCtAuthenticate(void)
 	}
 	printf("\n");
 #endif
-
-
-	ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);  	
+	rs = ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos); 
+	if(-1 == rs)
+	{	
+		printf("TerminalCtAuthenticate: Send first identity authentication failed\n");
+	}	
+	printf("TerminalCtAuthenticate: Send first identity authentication success\n");
+	sleep(1);
 	//确认应答并返回:ER1(8B)+ER31(16B)+ESAMID(8B)+R2(8B)
 	//否认应答:SERR特征字(2B)
+	memset(datafrm, 0, 128);
 	len = ComTaUart_Recv(serial_fd, datafrm, sizeof(datafrm));
 	if (len >= MRS_645_FRAME_LENGTH_MIN)
 	{	
-		printf("frame received:\n");
 #if debug_info
-		printf("before datafrm:");
+		printf("frame received:");
 		for (i = 0; i < len ; i++)
 		{
 			printf("%02X ", datafrm[i]);
@@ -405,17 +425,24 @@ int TerminalCtAuthenticate(void)
 		rs = mrsFind645Frame(datafrm, len, &uspos, &frmLen);
 		if (0 != rs)
 		{
+			printf("Can not find valid 645 Frame, rs(%d)\n", rs);
 			return rs;
 		}
 #if debug_info
-		printf("after datafrm:");
+		printf("find valid 645 Frame:");
 		for (i = 0; i < frmLen ; i++)
 		{
 			printf("%02X ", datafrm[uspos+i]);
 		}
 		printf("\n");
 #endif
-		Protocol_645_Unpack(datafrm+uspos, frmLen);
+		Protocol_645_Unpack(datafrm+uspos, frmLen);	
+		if(datafrm[uspos+MRS_645_FRAME_CTRL_OFFSET] == 0xC3)
+		{
+			printf("TerminalCtAuthenticate first identity authentication Abnormal Response Frame 0xC3\n");			
+			return -1;
+		}
+		printf("TerminalCtAuthenticate: first identity authentication success\n");
 	}
 	else if(len == -2)
 	{
@@ -428,7 +455,6 @@ int TerminalCtAuthenticate(void)
 	}
 	
 	sleep(1);
-		//}
 	
 	//step03: 终端对T-ESAM操作, 发送808534350020+ESAMID(8B)+ER1(8B)+ER31(16B) 终端认证ER1和ER31
 	_MSendFramePos = 0, pos=0, sndDataLens = 32;//, recvpos=0;
@@ -550,7 +576,7 @@ int TerminalCtAuthenticate(void)
 	_MSendFrame[_MSendFramePos++] = GetSum8(_MSendFrame, 42);
 	_MSendFrame[_MSendFramePos++] = 0x16;
 #if debug_info
-	printf("identity authentication 2:");
+	printf("Second identity authentication: ");
 	for (i = 0;i < _MSendFramePos ; i++)
 	{
 		printf("%02X ", _MSendFrame[i]);
@@ -567,15 +593,20 @@ int TerminalCtAuthenticate(void)
 	//ER32翻转
 	Array_Mirror(_MSendFrame + 26, 16);
 	//发送身份认证第二帧
-	ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	rs = ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	if(-1 == rs)
+	{	
+		printf("TerminalCtAuthenticate: Send Second identity authentication failed\n");
+		return -1;
+	}		
+	sleep(1);
 	//协议只有否认应答
 	memset(datafrm, 0, sizeof(datafrm));
 	len = ComTaUart_Recv(serial_fd, datafrm, sizeof(datafrm));
 	if (len >= MRS_645_FRAME_LENGTH_MIN)
 	{	
-		printf("frame received:\n");
 #if debug_info
-		printf("before datafrm:");
+		printf("frame received:\n");
 		for (i = 0; i < len ; i++)
 		{
 			printf("%02X ", datafrm[i]);
@@ -586,12 +617,19 @@ int TerminalCtAuthenticate(void)
 		rs = mrsFind645Frame(datafrm, len, &uspos, &frmLen);
 		if (0 != rs)
 		{
+			printf("can not find valid 645 Frame\n");
 			return rs;
 		}
 
 		Protocol_645_Unpack(datafrm+uspos, frmLen);
+		
+		if(datafrm[uspos+MRS_645_FRAME_CTRL_OFFSET] == 0xC3)
+		{
+			printf("TerminalCtAuthenticate Second identity authentication Abnormal Response Frame 0xC3\n");			
+			return -1;
+		}
 #if debug_info
-		printf("after datafrm:");
+		printf("TerminalCtAuthenticate find valid 645 Frame: ");
 		for (i = 0; i < frmLen ; i++)
 		{
 			printf("%02X ", datafrm[uspos+i]);
@@ -602,6 +640,7 @@ int TerminalCtAuthenticate(void)
 	else if(len == -2)
 	{
 		printf("error occured\n");
+		return -1;
 	}
 	else
 	{
@@ -610,7 +649,8 @@ int TerminalCtAuthenticate(void)
 	}
 	
 	sleep(1);
-	return recvDataBufPos;
+	printf("TerminalCtAuthenticate Identity authentication success\n");
+	return rs;
 }
 
 //终端上传T-ESAM序列号(8B)+证书序列号(16B)+计数器(4B)+芯片状态(1B)+密钥版本(8B)+终端随机数R5(8B)+MAC(4B) total(49B)
@@ -978,6 +1018,7 @@ int GetTABaudrate(unsigned char sendDataBuf, unsigned char *BaudrateWord)
 	ByteReverse(BaudrateWord, 1, tmpDatabuf+pos);
 	pos += 1;
 	//MAC1反序	
+	memcpy(BaudMac, &datafrm[uspos+MRS_645_FRAME_DATA_OFFSET+6], 4);
 	ByteReverse(&datafrm[uspos+MRS_645_FRAME_DATA_OFFSET+6], 4, tmpDatabuf+pos);
 	pos += 4;
 	memcpy(&_MSendFrame[_MSendFramePos], tmpDatabuf, pos);
@@ -1015,10 +1056,11 @@ int GetTABaudrate(unsigned char sendDataBuf, unsigned char *BaudrateWord)
 //	0 : 成功
 //	其它为错误码  
 //*****************************************************************************
-int SetTABaudrate(unsigned char formatCode, unsigned char BaudrateWord, unsigned char *MAC, unsigned char* MAC2, unsigned int MAC2Len)
+int SetTABaudrate(unsigned char formatCode, unsigned char BaudrateWord, unsigned char* MAC2, unsigned int MAC2Len)
 {
-	unsigned char	esamID[8] = {0};
-	int	len = 0, _rs = -1, recvDataBufPos = 0, pos=0;
+	unsigned char	esamID[8] = {0};	
+	unsigned char	datafrm[128] = {0};
+	int	len = 0, _rs = -1, recvDataBufPos = 0, pos=0, i=0, frmLen=0, uspos=0;
 	
 	//step01 终端发起双向身份认证流程
 	//TerminalCtAuthenticate(fd, esamID);
@@ -1037,28 +1079,96 @@ int SetTABaudrate(unsigned char formatCode, unsigned char BaudrateWord, unsigned
 	_MSendFrame[_MSendFramePos++] = 0xAA;
 	_MSendFrame[_MSendFramePos++] = 0x68;
 	_MSendFrame[_MSendFramePos++] = 0x03; 			
-	//数据域长度L:04H(数据标识)+04H(操作者代码)+01H(数据长度)
+	//数据域长度L:04H(数据标识)+04H(操作者代码)+(01H+01H+04H)(数据长度)
 	_MSendFrame[_MSendFramePos++] = 14;	//10
-	//数据标识, 占4字节
-	_MSendFrame[_MSendFramePos++] = 0x45;
-	_MSendFrame[_MSendFramePos++] = 0x0F;
+	//数据标识, 占4字节	
+	_MSendFrame[_MSendFramePos++] = 0x04;
 	_MSendFrame[_MSendFramePos++] = 0x00;
-	_MSendFrame[_MSendFramePos++] = 0x04;	//14
+	_MSendFrame[_MSendFramePos++] = 0x0F;
+	_MSendFrame[_MSendFramePos++] = 0x45;	//14
+
 	//操作者代码占4字节,默认00000000(4B),不需要变
 	_MSendFramePos += 4;
 	//格式码(1B)
 	_MSendFrame[_MSendFramePos++] = formatCode;	//19
+	//波特率特征字(1B)
 	_MSendFrame[_MSendFramePos++] = BaudrateWord;	//20
-	memcpy(&_MSendFrame[_MSendFramePos], MAC, 4);
+	//memcpy(&_MSendFrame[_MSendFramePos], MAC, 4);
+	//MAC(4B)
+	memcpy(&_MSendFrame[_MSendFramePos], BaudMac, 4);
 	_MSendFramePos += 4;	//24
 	//打包
 	Protocol_645_Pack(_MSendFrame, 24);
 	//校验和 + 结束符 + 帧长度
 	_MSendFrame[_MSendFramePos++] = GetSum8(_MSendFrame, 24);
 	_MSendFrame[_MSendFramePos++] = 0x16;
+	#if 0
 
-	ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);  
+	ComPort_Send(serial_fd, _MSendFrame, _MSendFramePos);  
 	//回路状态巡检仪终端安全芯片使用手册没有明确响应帧是什么
+	#else
+#if debug_info
+	printf("SetTABaudrate:");
+	for (i = 0;i < _MSendFramePos ; i++)
+	{
+		printf("%02X ", _MSendFrame[i]);
+	}
+	printf("\n");
+#endif
+	//数据域按需翻转高低字节
+	//数据标识翻转
+	Array_Mirror(_MSendFrame + 10, 4);
+	//操作者代码翻转
+	Array_Mirror(_MSendFrame + 14, 4);
+	//格式码翻转
+	Array_Mirror(_MSendFrame + 18, 1);
+	//波特率特征字翻转
+	Array_Mirror(_MSendFrame + 19, 1);
+	//MAC翻转
+	Array_Mirror(_MSendFrame + 20, 4);
+	//发送身份认证第二帧
+	ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	//协议只有否认应答
+	memset(datafrm, 0, sizeof(datafrm));
+	len = ComTaUart_Recv(serial_fd, datafrm, sizeof(datafrm));
+	if (len >= MRS_645_FRAME_LENGTH_MIN)
+	{	
+		printf("frame received:\n");
+#if debug_info
+		printf("before datafrm:");
+		for (i = 0; i < len ; i++)
+		{
+			printf("%02X ", datafrm[i]);
+		}
+		printf("\n");
+#endif
+		
+		_rs = mrsFind645Frame(datafrm, len, &uspos, &frmLen);
+		if (0 != _rs)
+		{
+			return _rs;
+		}
+
+		Protocol_645_Unpack(datafrm+uspos, frmLen);
+#if debug_info
+		printf("after datafrm:");
+		for (i = 0; i < frmLen ; i++)
+		{
+			printf("%02X ", datafrm[uspos+i]);
+		}
+		printf("\n");
+#endif
+	}
+	else if(len == -2)
+	{
+		printf("error occured\n");
+	}
+	else
+	{
+		printf("no frame received, ret %d.\n",len);
+		return -1;
+	}
+	#endif
 	
 	//step03 终端对T-ESAM操作,发送:80488138000A(6B)+data3(ESAMID(8B)+格式码(1B)+波特率特征字(1B))
 	_MSendFramePos = 0, sendDataLens = 10, pos = 0;
@@ -1081,7 +1191,8 @@ int SetTABaudrate(unsigned char formatCode, unsigned char BaudrateWord, unsigned
 	//拷贝ESAMID/格式码/波特率特征字
 	memcpy(&_MSendFrame[_MSendFramePos], tmpDatabuf, pos);
 	_MSendFramePos += pos;
-
+	free(tmpDatabuf);
+	tmpDatabuf = NULL;
 	_rs = MESamComRecv(_MSendFrame, _MSendFramePos, MAC2, &recvDataBufPos, MAC2Len);
 	if (_rs != 0)
 	{
@@ -1156,37 +1267,49 @@ int GetCTModuleStatus(unsigned char *formatCode, unsigned char *phaseABCStatus, 
 	//操作者代码翻转
 	Array_Mirror(_MSendFrame + 14, 4);
 	//终端下发获取CT模块状态命令
-	ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	//ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	_rs = ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	if(_rs == -1)
+	{		
+		printf("GetCTModuleStatus Send Data failed\n");
+		return _rs;
+	}
+	sleep(1);
 	//确认应答帧
 	memset(recvBuf, 0, sizeof(recvBuf));
 	recvLen = ComTaUart_Recv(serial_fd, recvBuf, sizeof(recvBuf));
 	if (recvLen >= MRS_645_FRAME_LENGTH_MIN)
 	{	
-		printf("frame received:\n");
 #if debug_info
-		printf("before datafrm:");
+		printf("frame received:\n");
 		for (i = 0; i < recvLen ; i++)
 		{
 			printf("%02X ", recvBuf[i]);
 		}
 		printf("\n");
 #endif
-		
+
 		_rs = mrsFind645Frame(recvBuf, recvLen, &uspos, &frmLen);
 		if (0 != _rs)
-		{
+		{		
+			printf("Can not find valid 645 Frame, rs(%d)\n", _rs);
 			return _rs;
 		}
 
 		Protocol_645_Unpack(recvBuf+uspos, frmLen);
 #if debug_info
-		printf("after datafrm:");
+		printf("find valid 645 Frame:");
 		for (i = 0; i < frmLen ; i++)
 		{
 			printf("%02X ", recvBuf[uspos+i]);
 		}
 		printf("\n");
 #endif
+		if(recvBuf[uspos+MRS_645_FRAME_CTRL_OFFSET] == 0xC3)
+		{
+			printf("Abnormal Response Frame 0xC3\n");
+			return -1;
+		}
 	}
 	else if(recvLen == -2)
 	{
@@ -1316,7 +1439,7 @@ int GetTAModuleSecurityInfo(unsigned char formatCode, unsigned char* mStatRand, 
 	int i = 0, frmLen=0, uspos=0, recvLen = 0, _rs = 0;
 	
 	//step01 终端发起双向身份认证流程
-	//TerminalCtAuthenticate(fd, esamID);
+	//TerminalCtAuthenticate();
 	//step02 终端下发获取TA专用模块安全信息下行帧
 	//数据项名称: 格式码(1B)/主站随机数(8B)
 	unsigned char _MSendFrame[50] = {0};	
@@ -1503,14 +1626,10 @@ int TAModuleKeyUpdate(int keyNums, unsigned char* sendDataBuf, int sendDataLens,
 //	函数名称: GetTerminalEnableControlParam
 //	功能描述: 终端使能控制参数查询        
 //	参数说明:
-//	keyNums	[in]	本帧密钥条数
-//	sendDataBuf [in]	密钥1-N
-//	MAC	[in]	MAC由DATA(不包含MAC)计算产生
 //	返 回 值: 
 //	0 : 成功
 //	其它为错误码  
 //*****************************************************************************
-
 int GetTerminalEnableControlParam(unsigned char* mStatRand, int RandSize, unsigned char* phaseAEnable, unsigned char* phaseBEnable, unsigned char* phaseCEnable)
 {
 	unsigned char _MSendFrame[50];
@@ -1544,6 +1663,236 @@ int GetTerminalEnableControlParam(unsigned char* mStatRand, int RandSize, unsign
 	pos += 1;
 	//终端使能控制C
 	ByteReverse(phaseCEnable, 1, tmpDataBuf+pos);
+	free(tmpDataBuf);
+	tmpDataBuf = NULL;
 	
 	return 0;
 }
+
+//*****************************************************************************
+//	函数名称: GetTABaudrate
+//	功能描述: 获取TA变比参数下行帧        
+//	参数说明:
+//	返 回 值: 
+//	0 : 成功
+//	其它为错误码  
+//*****************************************************************************
+int GetTATransformRate(unsigned char* formatCode)
+{	
+	int _rs = -1, i = 0, frmLen=0, uspos=0, len = 0;
+	unsigned int	recvDataBufPos=0;
+	unsigned char	datafrm[128] = {0};
+	//unsigned char	esamID[8] = {0};
+	int	pos=0;
+	
+	//step01 终端发起双向身份认证流程
+	//TerminalCtAuthenticate();
+
+	unsigned char _MSendFrame[50] = {0};	
+	int _MSendFramePos = 0, sendDataLens = 16;
+	
+	//step02 终端下发查询CT模块的波特率命令
+	_MSendFrame[_MSendFramePos++] = 0x68;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0x68;
+	_MSendFrame[_MSendFramePos++] = 0x03; 			
+	//数据域长度L:04H(数据标识)+04H(操作者代码)+01H(数据长度)
+	_MSendFrame[_MSendFramePos++] = 9;	//10
+	//数据标识, 占4字节
+	_MSendFrame[_MSendFramePos++] = 0x04;
+	_MSendFrame[_MSendFramePos++] = 0x00;
+	_MSendFrame[_MSendFramePos++] = 0x0F;
+	_MSendFrame[_MSendFramePos++] = 0x46;
+	//操作者代码占4字节,默认00000000,不需要变
+	_MSendFramePos += 4;
+	//格式码(1B)
+	_MSendFrame[_MSendFramePos++] = *formatCode;	//19
+	//打包
+	Protocol_645_Pack(_MSendFrame, 19);
+	//校验和 + 结束符 + 帧长度
+	_MSendFrame[_MSendFramePos++] = GetSum8(_MSendFrame, 19);
+	_MSendFrame[_MSendFramePos++] = 0x16;
+#if debug_info
+	printf("GetTATransformRate: ");
+	for (i = 0;i < _MSendFramePos ; i++)
+	{
+		printf("%02X ", _MSendFrame[i]);
+	}
+	printf("\n");
+#endif
+	//数据域按需翻转高低字节
+	//数据标识翻转
+	Array_Mirror(_MSendFrame + 10, 4);
+	//操作者代码翻转
+	Array_Mirror(_MSendFrame + 14, 4);
+	//发送获取TA变比参数下行帧
+	ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	//确认应答帧(格式码(1B)+A相电流互感器倍率(2B)+B相电流互感器倍率(2B)+C相电流互感器倍率(2B)+MAC(4B))
+	memset(datafrm, 0, sizeof(datafrm));
+	len = ComTaUart_Recv(serial_fd, datafrm, sizeof(datafrm));
+	if (len >= MRS_645_FRAME_LENGTH_MIN)
+	{	
+#if debug_info
+		printf("frame received:");
+		for (i = 0; i < len ; i++)
+		{
+			printf("%02X ", datafrm[i]);
+		}
+		printf("\n");
+#endif
+		
+		_rs = mrsFind645Frame(datafrm, len, &uspos, &frmLen);
+		if (0 != _rs)
+		{
+			return _rs;
+		}
+
+		Protocol_645_Unpack(datafrm+uspos, frmLen);
+#if debug_info
+		printf("process datafrm:");
+		for (i = 0; i < frmLen ; i++)
+		{
+			printf("%02X ", datafrm[uspos+i]);
+		}
+		printf("\n");
+#endif
+		if(datafrm[uspos+MRS_645_FRAME_CTRL_OFFSET] == 0xC3)
+		{
+			printf("GetTATransformRate Abnormal Response Frame 0xC3\n");			
+			return -1;
+		}
+	}
+	else if(len == -2)
+	{
+		printf("error occured\n");
+		return -1;
+	}
+	else
+	{
+		printf("no frame received, ret %d.\n",len);
+		return -1;
+	}
+	printf("GetTATransformRate success\n");
+	return 0;
+}
+
+//*****************************************************************************
+//	函数名称: GetTAModuleRealTimeMeasureData
+//	功能描述: 获取TA模块实时测量数据        
+//	参数说明:
+//	formatCode	[in]	格式码
+//	RealParam   [out]	实时测量数据
+//	ParamLen	[out]	数据长度
+//	返 回 值: 
+//	0 : 成功
+//	其它为错误码  
+//*****************************************************************************
+int GetTAModuleRealTimeMeasureData(unsigned char* formatCode, unsigned char* RealParam, int *ParamLen)
+{	
+	int _rs = -1, i = 0, frmLen=0, uspos=0, len = 0;
+	unsigned int	recvDataBufPos=0;
+	unsigned char	datafrm[256] = {0};
+	//unsigned char	esamID[8] = {0};
+	int	pos=0;
+	
+	//step01 终端发起双向身份认证流程
+	_rs = TerminalCtAuthenticate();
+	if(-1 == _rs)
+	{
+		printf("TerminalCtAuthenticate Identity authentication failed\n");
+	}
+	usleep(100*1000);
+
+	unsigned char _MSendFrame[50] = {0};	
+	int _MSendFramePos = 0, sendDataLens = 16;
+	
+	//step02 终端下发查询CT模块的波特率命令
+	_MSendFrame[_MSendFramePos++] = 0x68;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0xAA;
+	_MSendFrame[_MSendFramePos++] = 0x68;
+	_MSendFrame[_MSendFramePos++] = 0x03; 			
+	//数据域长度L:04H(数据标识)+04H(操作者代码)+01H(数据长度)
+	_MSendFrame[_MSendFramePos++] = 9;	//10
+	//数据标识, 占4字节
+	_MSendFrame[_MSendFramePos++] = 0x07;
+	_MSendFrame[_MSendFramePos++] = 0x00;
+	_MSendFrame[_MSendFramePos++] = 0x00;
+	_MSendFrame[_MSendFramePos++] = 0x03;
+	//操作者代码占4字节,默认00000000,不需要变
+	_MSendFramePos += 4;
+	//格式码(1B)
+	_MSendFrame[_MSendFramePos++] = *formatCode;	//19
+	//打包
+	Protocol_645_Pack(_MSendFrame, 19);
+	//校验和 + 结束符 + 帧长度
+	_MSendFrame[_MSendFramePos++] = GetSum8(_MSendFrame, 19);
+	_MSendFrame[_MSendFramePos++] = 0x16;
+	//数据域按需翻转高低字节
+	//数据标识翻转
+	Array_Mirror(_MSendFrame + 10, 4);
+	//操作者代码翻转
+	Array_Mirror(_MSendFrame + 14, 4);	
+	printf("GetTAModuleRealTimeMeasureData Send Data: ");
+	//发送读取TA模块事件发生时工况信息帧
+	_rs = ComTaUart_Send(serial_fd, _MSendFrame, _MSendFramePos);
+	if(_rs == -1)
+	{		
+		printf("GetTAModuleRealTimeMeasureData Send Data failed\n");
+		return _rs;
+	}
+	sleep(1);
+	//确认应答帧
+	memset(datafrm, 0, sizeof(datafrm));
+	len = ComTaUart_Recv(serial_fd, datafrm, sizeof(datafrm));
+	if (len >= MRS_645_FRAME_LENGTH_MIN)
+	{	
+		printf("frame received:\n");		
+		_rs = mrsFind645Frame(datafrm, len, &uspos, &frmLen);
+		if (0 != _rs)
+		{
+			return _rs;
+		}
+
+		Protocol_645_Unpack(datafrm+uspos, frmLen);
+#if debug_info
+		printf("after datafrm:");
+		for (i = 0; i < frmLen ; i++)
+		{
+			printf("%02X ", datafrm[uspos+i]);
+		}
+		printf("\n");
+#endif
+		if(datafrm[uspos+MRS_645_FRAME_CTRL_OFFSET] == 0xC3)
+		{
+			printf("Abnormal Response Frame 0xC3\n");
+			return -1;
+		}
+		*ParamLen = datafrm[uspos+MRS_645_FRAME_LENGTH_OFFSET]-4;
+		memcpy(RealParam, &datafrm[uspos+MRS_645_FRAME_DATA_OFFSET+4], *ParamLen);
+	}
+	else if(len == -2)
+	{
+		printf("error occured\n");
+		return -1;
+	}
+	else
+	{
+		printf("no frame received, ret %d.\n",len);
+		return -1;
+	}
+	
+	printf("GetTAModuleRealTimeMeasureData success\n");
+	return 0;
+}
+
+

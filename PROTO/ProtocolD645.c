@@ -338,7 +338,6 @@ int mrsFind645Frame(unsigned char* in_buf, int in_len,
         {//’“µΩ÷°
             int frame_len = 0;
             in_len -= (int)(head - buf);			
-			printf("*head=[0x%x, %p] *buf=[0x%x, %p], in_len=%d\n", *head, head, *buf, buf, in_len);
             buf = head;
 
             if (in_len < 12)
@@ -346,9 +345,8 @@ int mrsFind645Frame(unsigned char* in_buf, int in_len,
                 ret = -1;//HI_ERR_BAD_DATA;
                 break;
             }
-			printf("buf[9]=%d\n", buf[9]);
             frame_len = (int)(buf[9] + 12);
-			printf("frame_len=%d\n", frame_len);
+			printf("mrsFind645Frame: frame_len=%d, in_len=%d\n", frame_len, in_len);
 
             //≥¨≥§÷°
             if (frame_len > MRS_PROTO645_DATAGRAM_LEN_MAX)

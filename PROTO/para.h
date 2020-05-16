@@ -20,7 +20,9 @@ typedef struct
     current_circuit_param_stru CurLoopEnPara;
     current_transformer_rate_stru TARatePara;
 	sVirtualNet VirtualNet;
-}sTermSysInfo;  
+	u32 FluxLimitor;//流量限额。
+	TermMessageConParameterSet MessageCon;  //消息认证参数
+}__attribute__((packed))sTermSysInfo;  
 
 
 
@@ -61,11 +63,14 @@ int UpCommWorkWaysLoad(const char* confile);
 int EventParaLoad(const char* confile);
 int CurLoopParaLoad(const char* confile);
 int TaRateParaLoad(const char* confile);
+int TermUpFluxLimitLoad(const char* confile);
 
 int TermParaPowerUp(const char* confile);
 
 int TermParaDefault(void);
 int TermParaDefButMainSta(void);
+
+int ConsCheInfoLoad(const char* confile);
 
 
 

@@ -94,7 +94,6 @@ int ListRemove(sList *list,int (*move_node)(void *),sList *node)
     //没有找到该结点
     if (it == list) 
 	{
-		printf("[ListDebug]not file list node\n");
 		return -1;
     }
 
